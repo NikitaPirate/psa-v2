@@ -26,7 +26,7 @@ members = [
 package = false
 
 [tool.pytest.ini_options]
-testpaths = ["core/tests"]
+testpaths = ["core/tests", "cli/tests"]
 
 [tool.ruff]
 line-length = 100
