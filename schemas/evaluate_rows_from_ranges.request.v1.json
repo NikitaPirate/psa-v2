@@ -1,0 +1,75 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://psa-v2.dev/schemas/evaluate_rows_from_ranges.request.v1.json",
+  "title": "EvaluateRowsFromRangesRequestV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "strategy",
+    "price_start",
+    "price_end",
+    "price_steps",
+    "time_start",
+    "time_end",
+    "time_steps"
+  ],
+  "properties": {
+    "strategy": { "$ref": "#/$defs/StrategySpec" },
+    "price_start": { "type": "number", "exclusiveMinimum": 0 },
+    "price_end": { "type": "number", "exclusiveMinimum": 0 },
+    "price_steps": { "type": "integer", "minimum": 1 },
+    "time_start": { "type": "string", "format": "date-time" },
+    "time_end": { "type": "string", "format": "date-time" },
+    "time_steps": { "type": "integer", "minimum": 1 },
+    "include_price_breakpoints": { "type": "boolean", "default": true }
+  },
+  "$defs": {
+    "PriceSegment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["price_low", "price_high", "weight"],
+      "properties": {
+        "price_low": { "type": "number", "exclusiveMinimum": 0 },
+        "price_high": { "type": "number", "exclusiveMinimum": 0 },
+        "weight": { "type": "number", "minimum": 0 }
+      }
+    },
+    "TimeSegment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["start_ts", "end_ts", "k_start", "k_end"],
+      "properties": {
+        "start_ts": { "type": "string", "format": "date-time" },
+        "end_ts": { "type": "string", "format": "date-time" },
+        "k_start": { "type": "number", "exclusiveMinimum": 0 },
+        "k_end": { "type": "number", "exclusiveMinimum": 0 }
+      }
+    },
+    "StrategySpec": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["market_mode", "price_segments"],
+      "properties": {
+        "market_mode": { "type": "string", "enum": ["bear", "bull"] },
+        "price_segments": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/PriceSegment" },
+          "contains": {
+            "type": "object",
+            "required": ["weight"],
+            "properties": {
+              "weight": { "type": "number", "exclusiveMinimum": 0 }
+            }
+          },
+          "minContains": 1
+        },
+        "time_segments": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/TimeSegment" },
+          "default": []
+        }
+      }
+    }
+  }
+}

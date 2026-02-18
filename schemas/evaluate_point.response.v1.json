@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://psa-v2.dev/schemas/evaluate_point.response.v1.json",
+  "title": "EvaluatePointResponseV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["row"],
+  "properties": {
+    "row": { "$ref": "#/$defs/EvaluationRow" }
+  },
+  "$defs": {
+    "EvaluationRow": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "timestamp",
+        "price",
+        "time_k",
+        "virtual_price",
+        "base_share",
+        "target_share"
+      ],
+      "properties": {
+        "timestamp": { "type": "string", "format": "date-time" },
+        "price": { "type": "number", "exclusiveMinimum": 0 },
+        "time_k": { "type": "number", "exclusiveMinimum": 0 },
+        "virtual_price": { "type": "number", "exclusiveMinimum": 0 },
+        "base_share": { "type": "number", "minimum": 0, "maximum": 1 },
+        "target_share": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    }
+  }
+}
