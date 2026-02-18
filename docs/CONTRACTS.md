@@ -20,7 +20,7 @@ Machine-facing contracts are versioned JSON Schema files under `schemas/`.
 - Output shares are normalized to `[0, 1]`.
 - `price_segments` must include at least one row with `weight > 0`.
 - Schema checks structure and primitive constraints.
-- Cross-field and semantic constraints are enforced in `src/psa_core/validation.py`.
+- Cross-field and semantic constraints are enforced in `core/src/psa_core/validation.py`.
 
 ## Examples
 
@@ -31,7 +31,7 @@ Machine-facing contracts are versioned JSON Schema files under `schemas/`.
 
 ## Runtime adapters
 
-`src/psa_core/contracts.py` exposes payload adapters:
+`core/src/psa_core/contracts.py` exposes payload adapters:
 - request parsing,
 - runtime validation delegation,
 - JSON-ready response building.

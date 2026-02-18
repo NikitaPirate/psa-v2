@@ -52,7 +52,7 @@ Do not mix tutorial prose into normative sections.
 
 ## 7. Code constraints
 
-- Keep `src/psa_core` independent from framework-specific model libraries.
+- Keep `core/src/psa_core` independent from framework-specific model libraries.
 - Keep validation explicit and local to boundary adapters.
 - Preserve deterministic behavior.
 

@@ -54,9 +54,11 @@ See:
 
 ## Repository layout
 
-- `src/psa_core/` - core package.
+- `core/src/psa_core/` - core package.
+- `cli/src/psa_cli/` - CLI package.
+- `api/src/psa_api/` - FastAPI package.
 - `schemas/` - versioned JSON schemas.
 - `examples/` - contract payload examples.
-- `tests/` - unit, invariants, and contract tests.
+- `core/tests/` - core unit, invariants, and contract tests.
 - `docs/` - architecture and specs.
 - `AGENTS.md` - contributor behavior and documentation rules.

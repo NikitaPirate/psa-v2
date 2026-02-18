@@ -13,7 +13,7 @@ from psa_core.contracts import (
     evaluate_rows_payload,
 )
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 SCHEMAS = ROOT / "schemas"
 EXAMPLES = ROOT / "examples"
 FORMAT_CHECKER = FormatChecker()

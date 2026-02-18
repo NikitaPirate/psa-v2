@@ -2,18 +2,18 @@
 
 ## Test layers
 
-1. Unit tests (`tests/test_engine.py`, `tests/test_validation.py`)
+1. Unit tests (`core/tests/test_engine.py`, `core/tests/test_validation.py`)
 - directional price behavior,
 - time coefficient boundaries,
 - deterministic row evaluation,
 - overlap and mode validation.
 
-2. Property/invariant tests (`tests/test_invariants.py`)
+2. Property/invariant tests (`core/tests/test_invariants.py`)
 - bounded shares,
 - monotonic favorable-direction behavior,
 - non-decreasing target share over time when `k(t)` is non-decreasing.
 
-3. Contract tests (`tests/test_contracts.py`)
+3. Contract tests (`core/tests/test_contracts.py`)
 - schema validity,
 - examples validated against schemas,
 - response payloads validated against response schemas,
@@ -22,7 +22,7 @@
 ## Execution
 
 ```bash
-uv run --group dev pytest
+uv run pytest
 ```
 
 ## Quality gate

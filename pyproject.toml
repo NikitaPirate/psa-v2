@@ -1,7 +1,7 @@
 [project]
-name = "psa-platform"
+name = "psa-workspace"
 version = "0.1.0"
-description = "PSA monorepo workspace for strategy engine, CLI, API, and integrations"
+description = "PSA monorepo workspace"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = []
@@ -15,15 +15,18 @@ dev = [
     "ruff>=0.7.0",
 ]
 
-[build-system]
-requires = ["hatchling>=1.25.0"]
-build-backend = "hatchling.build"
+[tool.uv.workspace]
+members = [
+    "core",
+    "cli",
+    "api",
+]
 
-[tool.hatch.build.targets.wheel]
-packages = ["src/psa_core"]
+[tool.uv]
+package = false
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+testpaths = ["core/tests"]
 
 [tool.ruff]
 line-length = 100

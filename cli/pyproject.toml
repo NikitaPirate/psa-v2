@@ -1,0 +1,22 @@
+[project]
+name = "psa-cli"
+version = "0.1.0"
+description = "CLI for PSA workspace"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "psa-core",
+]
+
+[project.scripts]
+psa = "psa_cli.__main__:main"
+
+[tool.uv.sources]
+psa-core = { workspace = true }
+
+[build-system]
+requires = ["hatchling>=1.25.0"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/psa_cli"]
