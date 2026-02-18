@@ -60,3 +60,9 @@ Do not mix tutorial prose into normative sections.
 
 - Do not update `CHANGELOG.md` during regular implementation iterations.
 - Update `CHANGELOG.md` only in the final pre-PR pass.
+
+## 9. UV workflow in this repo
+
+- Use `uv sync` to prepare environment (do not add `--group dev`).
+- Run tools via `uv run <tool>` (for example: `uv run pytest`, `uv run ruff check .`).
+- Do not use `uv run --with ...` for regular project commands or hooks.

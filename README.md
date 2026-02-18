@@ -24,19 +24,19 @@ Current implemented module: a compact, deterministic Python core for directional
 Works in `bash`, `zsh`, and `fish`.
 
 ```bash
-uv sync --group dev
+uv sync
 ```
 
 ## Run tests
 
 ```bash
-uv run --group dev pytest
+uv run pytest
 ```
 
 ## Lint
 
 ```bash
-uv run --group dev ruff check .
+uv run ruff check .
 ```
 
 ## Public Python API
