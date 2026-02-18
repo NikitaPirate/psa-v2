@@ -3,8 +3,8 @@ from __future__ import annotations
 from collections.abc import Sequence
 from datetime import datetime
 
-from .types import MarketMode, PriceSegment, TimeSegment
-from .validation import parse_iso8601_utc
+from psa_core.types import MarketMode, PriceSegment, TimeSegment
+from psa_core.validation import parse_iso8601_utc
 
 EPS = 1e-12
 

@@ -4,7 +4,7 @@ import math
 from collections.abc import Iterable
 from datetime import datetime
 
-from .types import MarketMode, PriceSegment, StrategySpec, TimeSegment
+from psa_core.types import MarketMode, PriceSegment, StrategySpec, TimeSegment
 
 _ALLOWED_MARKET_MODES: set[str] = {"bear", "bull"}
 

@@ -53,6 +53,7 @@ Do not mix tutorial prose into normative sections.
 ## 7. Code constraints
 
 - Keep `core/src/psa_core` independent from framework-specific model libraries.
+- Use absolute imports across project packages; avoid relative imports.
 - Keep validation explicit and local to boundary adapters.
 - Preserve deterministic behavior.
 

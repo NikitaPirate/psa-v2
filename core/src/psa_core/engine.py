@@ -3,9 +3,9 @@ from __future__ import annotations
 from collections.abc import Sequence
 from datetime import UTC, datetime
 
-from .math import compute_price_share, compute_time_coefficient, compute_virtual_price
-from .types import EvaluationRow, ObservationRow, PriceSegment, StrategySpec
-from .validation import validate_observation, validate_range_arguments, validate_strategy
+from psa_core.math import compute_price_share, compute_time_coefficient, compute_virtual_price
+from psa_core.types import EvaluationRow, ObservationRow, PriceSegment, StrategySpec
+from psa_core.validation import validate_observation, validate_range_arguments, validate_strategy
 
 
 def _linspace(start: float, end: float, steps: int) -> list[float]:

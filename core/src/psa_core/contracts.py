@@ -3,9 +3,9 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from typing import Any
 
-from .engine import evaluate_point, evaluate_rows, evaluate_rows_from_ranges
-from .types import EvaluationRow, ObservationRow, PriceSegment, StrategySpec, TimeSegment
-from .validation import validate_strategy
+from psa_core.engine import evaluate_point, evaluate_rows, evaluate_rows_from_ranges
+from psa_core.types import EvaluationRow, ObservationRow, PriceSegment, StrategySpec, TimeSegment
+from psa_core.validation import validate_strategy
 
 
 class ContractError(ValueError):
