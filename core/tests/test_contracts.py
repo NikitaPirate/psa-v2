@@ -5,7 +5,6 @@ from pathlib import Path
 
 import pytest
 from jsonschema import Draft202012Validator, FormatChecker, ValidationError, validate
-
 from psa_core.contracts import (
     ContractError,
     evaluate_point_payload,

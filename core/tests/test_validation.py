@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import pytest
-
 from psa_core.types import PriceSegment, StrategySpec, TimeSegment
 from psa_core.validation import validate_observation, validate_range_arguments, validate_strategy
 
