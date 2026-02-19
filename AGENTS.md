@@ -67,3 +67,8 @@ Do not mix tutorial prose into normative sections.
 - Use `uv sync` to prepare environment (do not add `--group dev`).
 - Run tools via `uv run <tool>` (for example: `uv run pytest`, `uv run ruff check .`).
 - Do not use `uv run --with ...` for regular project commands or hooks.
+
+## 10. Release workflow docs
+
+- Tag-driven release process for `psa-core` and `psa-cli` is documented in `docs/RELEASE_RUNBOOK.md`.
+- Keep release process details in the runbook and link to it instead of duplicating instructions in other docs.
