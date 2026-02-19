@@ -51,6 +51,7 @@ See:
 - formulas and invariants: `docs/MATH_SPEC.md`
 - JSON contracts and examples: `docs/CONTRACTS.md`
 - test matrix: `docs/TESTING_STRATEGY.md`
+- release process: `docs/RELEASE_RUNBOOK.md`
 
 ## Repository layout
 

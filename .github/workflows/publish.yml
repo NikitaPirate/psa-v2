@@ -1,0 +1,53 @@
+name: Publish
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v7
+
+      - name: Install Python
+        run: uv python install 3.11
+
+      - name: Verify lockstep release state
+        run: uv run --no-project python scripts/release/verify_release_state.py --tag "${GITHUB_REF_NAME}"
+
+      - name: Build psa-core
+        run: uv build --package psa-core --no-sources --out-dir dist/core
+
+      - name: Publish psa-core
+        run: uv publish --trusted-publishing always dist/core/*
+
+      - name: Build psa-cli
+        run: uv build --package psa-cli --no-sources --out-dir dist/cli
+
+      - name: Publish psa-cli
+        run: uv publish --trusted-publishing always dist/cli/*
+
+      - name: Post-publish smoke test
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          RELEASE_VERSION="${RELEASE_TAG#v}"
+          for attempt in {1..20}; do
+            if uvx --from "psa-cli==${RELEASE_VERSION}" psa --version; then
+              exit 0
+            fi
+            echo "package psa-cli==${RELEASE_VERSION} is not ready yet (${attempt}/20)"
+            sleep 15
+          done
+          echo "failed to execute published package psa-cli==${RELEASE_VERSION}"
+          exit 1

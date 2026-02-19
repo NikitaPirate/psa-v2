@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import pytest
-
 from psa_core import (
     ObservationRow,
     PriceSegment,
