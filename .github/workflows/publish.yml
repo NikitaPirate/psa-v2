@@ -6,11 +6,9 @@ on:
       - "v*"
 
 jobs:
-  publish:
+  build:
     runs-on: ubuntu-latest
-    environment: pypi
     permissions:
-      id-token: write
       contents: read
     steps:
       - name: Checkout
@@ -26,16 +24,70 @@ jobs:
         run: uv run --no-project python scripts/release/verify_release_state.py --tag "${GITHUB_REF_NAME}"
 
       - name: Build psa-strategy-core
-        run: uv build --package psa-strategy-core --no-sources --out-dir dist/core
-
-      - name: Publish psa-strategy-core
-        run: uv publish --trusted-publishing always dist/core/*
+        run: uv build --package psa-strategy-core --no-sources --out-dir dist/core --clear
 
       - name: Build psa-strategy-cli
-        run: uv build --package psa-strategy-cli --no-sources --out-dir dist/cli
+        run: uv build --package psa-strategy-cli --no-sources --out-dir dist/cli --clear
+
+      - name: Upload core artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-core
+          path: dist/core/*
+          if-no-files-found: error
+
+      - name: Upload cli artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-cli
+          path: dist/cli/*
+          if-no-files-found: error
+
+  publish-core:
+    needs: build
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v7
+
+      - name: Install Python
+        run: uv python install 3.11
+
+      - name: Download core artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: dist-core
+          path: dist/core
+
+      - name: Publish psa-strategy-core
+        run: uv publish --trusted-publishing always --check-url https://pypi.org/simple dist/core/*
+
+  publish-cli:
+    needs: publish-core
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v7
+
+      - name: Install Python
+        run: uv python install 3.11
+
+      - name: Download cli artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: dist-cli
+          path: dist/cli
 
       - name: Publish psa-strategy-cli
-        run: uv publish --trusted-publishing always dist/cli/*
+        run: uv publish --trusted-publishing always --check-url https://pypi.org/simple dist/cli/*
 
       - name: Post-publish smoke test
         env:
