@@ -1,0 +1,44 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  lint-test-build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v7
+
+      - name: Install Python
+        run: uv python install 3.11
+
+      - name: Sync workspace dependencies
+        run: uv sync
+
+      - name: Ruff
+        run: uv run ruff check .
+
+      - name: Pytest
+        run: uv run pytest
+
+      - name: Build psa-core
+        run: uv build --package psa-core --out-dir dist/core
+
+      - name: Build psa-cli
+        run: uv build --package psa-cli --out-dir dist/cli
+
+      - name: Smoke test version from local wheels
+        run: uvx --from dist/cli/*.whl --with dist/core/*.whl psa --version
+
+      - name: Smoke test evaluate-point from local wheels
+        run: |
+          uvx --from dist/cli/*.whl --with dist/core/*.whl psa evaluate-point \
+            --input examples/bear_accumulate_point.json \
+            --output -
