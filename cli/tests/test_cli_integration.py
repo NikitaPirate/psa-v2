@@ -100,6 +100,15 @@ def test_cli_returns_code_3_on_invalid_json() -> None:
     assert "invalid JSON" in completed.stderr
 
 
+def test_cli_returns_code_3_on_invalid_utf8_file(tmp_path: Path) -> None:
+    path = tmp_path / "invalid_utf8.json"
+    path.write_bytes(b"\xff\xfe")
+
+    completed = _run_cli(["evaluate-point", "--input", str(path), "--output", "-"])
+    assert completed.returncode == 3
+    assert "invalid UTF-8 input" in completed.stderr
+
+
 def test_cli_returns_code_4_on_schema_violation(tmp_path: Path) -> None:
     payload = _load_json(EXAMPLES / "bear_accumulate_point.json")
     payload["strategy"]["market_mode"] = "sideways"
@@ -110,6 +119,19 @@ def test_cli_returns_code_4_on_schema_violation(tmp_path: Path) -> None:
     completed = _run_cli(["evaluate-point", "--input", str(path), "--output", "-"])
     assert completed.returncode == 4
     assert "request does not match schema" in completed.stderr
+
+
+def test_cli_schema_prevalidation_rejects_invalid_datetime_format(tmp_path: Path) -> None:
+    payload = _load_json(EXAMPLES / "bear_accumulate_point.json")
+    payload["timestamp"] = "2026-03-01T00:00:00"
+
+    path = tmp_path / "invalid_datetime.json"
+    path.write_text(json.dumps(payload), encoding="utf-8")
+
+    completed = _run_cli(["evaluate-point", "--input", str(path), "--output", "-"])
+    assert completed.returncode == 4
+    assert "request does not match schema" in completed.stderr
+    assert "date-time" in completed.stderr
 
 
 def test_cli_returns_code_4_on_runtime_validation_error(tmp_path: Path) -> None:

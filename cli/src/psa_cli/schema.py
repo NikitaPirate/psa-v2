@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import json
 import os
+import re
+from datetime import datetime
 from functools import cache
 from pathlib import Path
 from typing import Any
@@ -17,6 +19,24 @@ REQUEST_SCHEMAS: dict[str, str] = {
 }
 
 FORMAT_CHECKER = FormatChecker()
+RFC3339_DATETIME_RE = re.compile(
+    r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$"
+)
+
+
+@FORMAT_CHECKER.checks("date-time")
+def _is_rfc3339_datetime(value: object) -> bool:
+    if not isinstance(value, str):
+        return False
+    if not RFC3339_DATETIME_RE.match(value):
+        return False
+
+    normalized = value[:-1] + "+00:00" if value.endswith("Z") else value
+    try:
+        datetime.fromisoformat(normalized)
+    except ValueError:
+        return False
+    return True
 
 
 def _schema_candidates() -> list[Path]:

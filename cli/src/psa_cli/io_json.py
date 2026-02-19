@@ -15,6 +15,8 @@ def read_json_input(input_path: str) -> Any:
             raw = sys.stdin.read()
         else:
             raw = Path(input_path).read_text(encoding="utf-8")
+    except UnicodeDecodeError as exc:
+        raise CliIoError(f"invalid UTF-8 input in {source_label}: {exc}") from exc
     except OSError as exc:
         reason = exc.strerror or str(exc)
         raise CliIoError(f"failed to read input from {source_label}: {reason}") from exc
