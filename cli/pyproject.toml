@@ -1,19 +1,19 @@
 [project]
-name = "psa-cli"
+name = "psa-strategy-cli"
 version = "0.1.0"
 description = "CLI for PSA workspace"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
     "jsonschema>=4.25.0",
-    "psa-core==0.1.0",
+    "psa-strategy-core==0.1.0",
 ]
 
 [project.scripts]
 psa = "psa_cli.__main__:main"
 
 [tool.uv.sources]
-psa-core = { workspace = true }
+psa-strategy-core = { workspace = true }
 
 [build-system]
 requires = ["hatchling>=1.25.0"]

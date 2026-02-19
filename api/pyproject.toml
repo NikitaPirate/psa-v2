@@ -6,12 +6,12 @@ readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
     "fastapi>=0.115.0",
-    "psa-core",
+    "psa-strategy-core",
     "uvicorn>=0.30.0",
 ]
 
 [tool.uv.sources]
-psa-core = { workspace = true }
+psa-strategy-core = { workspace = true }
 
 [build-system]
 requires = ["hatchling>=1.25.0"]

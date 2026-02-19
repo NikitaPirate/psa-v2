@@ -12,7 +12,7 @@ COMMAND_HELP: dict[str, str] = {
 
 def _cli_version() -> str:
     try:
-        return version("psa-cli")
+        return version("psa-strategy-cli")
     except PackageNotFoundError:
         return "0.1.0"
 
@@ -22,7 +22,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--version",
         action="version",
-        version=f"psa-cli {_cli_version()}",
+        version=f"psa-strategy-cli {_cli_version()}",
     )
 
     subparsers = parser.add_subparsers(dest="command")

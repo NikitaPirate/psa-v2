@@ -1,4 +1,4 @@
-# psa-cli
+# psa-strategy-cli
 
 Command-line interface for PSA strategy evaluation contracts.
 
@@ -63,4 +63,5 @@ uv run psa evaluate-ranges --input - --output -
 CLI searches request schemas in this order:
 
 1. `PSA_SCHEMA_DIR` (if set)
-2. repository `schemas/` directory
+2. packaged schemas bundled inside the installed `psa-strategy-cli` distribution
+3. repository `schemas/` directory (development fallback)

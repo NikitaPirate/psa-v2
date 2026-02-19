@@ -5,8 +5,8 @@ requires-python = ">=3.11"
 [manifest]
 members = [
     "psa-api",
-    "psa-cli",
-    "psa-core",
+    "psa-strategy-cli",
+    "psa-strategy-core",
     "psa-workspace",
 ]
 
@@ -247,34 +247,34 @@ version = "0.1.0"
 source = { editable = "api" }
 dependencies = [
     { name = "fastapi" },
-    { name = "psa-core" },
+    { name = "psa-strategy-core" },
     { name = "uvicorn" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "fastapi", specifier = ">=0.115.0" },
-    { name = "psa-core", editable = "core" },
+    { name = "psa-strategy-core", editable = "core" },
     { name = "uvicorn", specifier = ">=0.30.0" },
 ]
 
 [[package]]
-name = "psa-cli"
+name = "psa-strategy-cli"
 version = "0.1.0"
 source = { editable = "cli" }
 dependencies = [
     { name = "jsonschema" },
-    { name = "psa-core" },
+    { name = "psa-strategy-core" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "jsonschema", specifier = ">=4.25.0" },
-    { name = "psa-core", editable = "core" },
+    { name = "psa-strategy-core", editable = "core" },
 ]
 
 [[package]]
-name = "psa-core"
+name = "psa-strategy-core"
 version = "0.1.0"
 source = { editable = "core" }
 

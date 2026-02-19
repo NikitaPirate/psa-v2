@@ -7,6 +7,8 @@ from pathlib import Path
 from typing import Any
 
 TAG_PATTERN = re.compile(r"^v(?P<version>\d+\.\d+\.\d+)$")
+CORE_PACKAGE_NAME = "psa-strategy-core"
+CLI_PACKAGE_NAME = "psa-strategy-cli"
 
 
 def _load_project_table(pyproject_path: Path) -> dict[str, Any]:
@@ -34,11 +36,11 @@ def _extract_cli_core_dependency(pyproject_path: Path) -> str:
     core_dependencies = [
         dependency
         for dependency in dependencies
-        if isinstance(dependency, str) and dependency.startswith("psa-core")
+        if isinstance(dependency, str) and dependency.startswith(CORE_PACKAGE_NAME)
     ]
     if len(core_dependencies) != 1:
         raise SystemExit(
-            f"expected exactly one 'psa-core' dependency in {pyproject_path}, "
+            f"expected exactly one '{CORE_PACKAGE_NAME}' dependency in {pyproject_path}, "
             f"found {len(core_dependencies)}"
         )
     return core_dependencies[0]
@@ -53,7 +55,10 @@ def _version_from_tag(tag: str) -> str:
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Validate lockstep release versions for psa-core and psa-cli."
+        description=(
+            "Validate lockstep release versions for "
+            f"{CORE_PACKAGE_NAME} and {CLI_PACKAGE_NAME}."
+        )
     )
     parser.add_argument("--tag", required=True, help="Git tag, for example v0.1.0")
     args = parser.parse_args()
@@ -76,7 +81,7 @@ def main() -> int:
         )
 
     core_dependency = _extract_cli_core_dependency(cli_pyproject)
-    expected_dependency = f"psa-core=={expected_version}"
+    expected_dependency = f"{CORE_PACKAGE_NAME}=={expected_version}"
     if core_dependency != expected_dependency:
         raise SystemExit(
             "cli dependency mismatch: "

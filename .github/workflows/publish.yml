@@ -25,16 +25,16 @@ jobs:
       - name: Verify lockstep release state
         run: uv run --no-project python scripts/release/verify_release_state.py --tag "${GITHUB_REF_NAME}"
 
-      - name: Build psa-core
-        run: uv build --package psa-core --no-sources --out-dir dist/core
+      - name: Build psa-strategy-core
+        run: uv build --package psa-strategy-core --no-sources --out-dir dist/core
 
-      - name: Publish psa-core
+      - name: Publish psa-strategy-core
         run: uv publish --trusted-publishing always dist/core/*
 
-      - name: Build psa-cli
-        run: uv build --package psa-cli --no-sources --out-dir dist/cli
+      - name: Build psa-strategy-cli
+        run: uv build --package psa-strategy-cli --no-sources --out-dir dist/cli
 
-      - name: Publish psa-cli
+      - name: Publish psa-strategy-cli
         run: uv publish --trusted-publishing always dist/cli/*
 
       - name: Post-publish smoke test
@@ -43,11 +43,11 @@ jobs:
         run: |
           RELEASE_VERSION="${RELEASE_TAG#v}"
           for attempt in {1..20}; do
-            if uvx --from "psa-cli==${RELEASE_VERSION}" psa --version; then
+            if uvx --from "psa-strategy-cli==${RELEASE_VERSION}" psa --version; then
               exit 0
             fi
-            echo "package psa-cli==${RELEASE_VERSION} is not ready yet (${attempt}/20)"
+            echo "package psa-strategy-cli==${RELEASE_VERSION} is not ready yet (${attempt}/20)"
             sleep 15
           done
-          echo "failed to execute published package psa-cli==${RELEASE_VERSION}"
+          echo "failed to execute published package psa-strategy-cli==${RELEASE_VERSION}"
           exit 1

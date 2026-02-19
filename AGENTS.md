@@ -70,5 +70,5 @@ Do not mix tutorial prose into normative sections.
 
 ## 10. Release workflow docs
 
-- Tag-driven release process for `psa-core` and `psa-cli` is documented in `docs/RELEASE_RUNBOOK.md`.
+- Tag-driven release process for `psa-strategy-core` and `psa-strategy-cli` is documented in `docs/RELEASE_RUNBOOK.md`.
 - Keep release process details in the runbook and link to it instead of duplicating instructions in other docs.

@@ -28,11 +28,11 @@ jobs:
       - name: Pytest
         run: uv run pytest
 
-      - name: Build psa-core
-        run: uv build --package psa-core --out-dir dist/core
+      - name: Build psa-strategy-core
+        run: uv build --package psa-strategy-core --out-dir dist/core
 
-      - name: Build psa-cli
-        run: uv build --package psa-cli --out-dir dist/cli
+      - name: Build psa-strategy-cli
+        run: uv build --package psa-strategy-cli --out-dir dist/cli
 
       - name: Smoke test version from local wheels
         run: uvx --from dist/cli/*.whl --with dist/core/*.whl psa --version
