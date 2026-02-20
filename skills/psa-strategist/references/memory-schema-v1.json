@@ -1,0 +1,234 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://psa.local/schemas/psa-memory.v1.schema.json",
+  "title": "PSA Memory Store v1",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "updated_at",
+    "user_profile",
+    "theses",
+    "strategies",
+    "strategy_versions",
+    "strategy_thesis_links",
+    "checkins",
+    "decision_log"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "psa-memory.v1"
+    },
+    "updated_at": {
+      "type": "string"
+    },
+    "user_profile": {
+      "type": "object",
+      "required": [
+        "user_id",
+        "language",
+        "philosophy",
+        "constraints",
+        "active_strategy_id",
+        "updated_at"
+      ],
+      "properties": {
+        "user_id": { "type": "string" },
+        "language": { "type": "string" },
+        "philosophy": { "type": "string" },
+        "constraints": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "cli_runtime": {
+          "type": "object",
+          "properties": {
+            "mode": {
+              "type": "string",
+              "enum": ["auto", "uvx", "tool"]
+            },
+            "package_name": { "type": "string" },
+            "command": { "type": "string" },
+            "resolved": { "type": "boolean" },
+            "updated_at": { "type": "string" }
+          },
+          "additionalProperties": true
+        },
+        "active_strategy_id": {
+          "type": ["string", "null"]
+        },
+        "updated_at": { "type": "string" }
+      },
+      "additionalProperties": true
+    },
+    "theses": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "summary",
+          "assumptions",
+          "invalidation_signals",
+          "horizon",
+          "status",
+          "created_at",
+          "updated_at"
+        ],
+        "properties": {
+          "id": { "type": "string" },
+          "title": { "type": "string" },
+          "summary": { "type": "string" },
+          "assumptions": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "invalidation_signals": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "horizon": { "type": "string" },
+          "status": { "type": "string" },
+          "created_at": { "type": "string" },
+          "updated_at": { "type": "string" }
+        },
+        "additionalProperties": true
+      }
+    },
+    "strategies": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "objective",
+          "market_mode",
+          "notes",
+          "status",
+          "latest_version_id",
+          "created_at",
+          "updated_at"
+        ],
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "objective": { "type": "string" },
+          "market_mode": {
+            "type": "string",
+            "enum": ["bear", "bull"]
+          },
+          "notes": { "type": "string" },
+          "status": { "type": "string" },
+          "latest_version_id": {
+            "type": ["string", "null"]
+          },
+          "created_at": { "type": "string" },
+          "updated_at": { "type": "string" }
+        },
+        "additionalProperties": true
+      }
+    },
+    "strategy_versions": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "id",
+          "strategy_id",
+          "label",
+          "rationale",
+          "created_by",
+          "created_at",
+          "strategy_spec",
+          "tags"
+        ],
+        "properties": {
+          "id": { "type": "string" },
+          "strategy_id": { "type": "string" },
+          "label": { "type": "string" },
+          "rationale": { "type": "string" },
+          "created_by": { "type": "string" },
+          "created_at": { "type": "string" },
+          "strategy_spec": {
+            "type": "object",
+            "required": ["market_mode", "price_segments", "time_segments"],
+            "properties": {
+              "market_mode": {
+                "type": "string",
+                "enum": ["bear", "bull"]
+              },
+              "price_segments": {
+                "type": "array",
+                "minItems": 1
+              },
+              "time_segments": {
+                "type": "array"
+              }
+            },
+            "additionalProperties": true
+          },
+          "tags": {
+            "type": "array",
+            "items": { "type": "string" }
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "strategy_thesis_links": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["strategy_id", "thesis_id", "rationale", "created_at", "updated_at"],
+        "properties": {
+          "strategy_id": { "type": "string" },
+          "thesis_id": { "type": "string" },
+          "rationale": { "type": "string" },
+          "created_at": { "type": "string" },
+          "updated_at": { "type": "string" }
+        },
+        "additionalProperties": true
+      }
+    },
+    "checkins": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "strategy_id", "timestamp", "created_at"],
+        "properties": {
+          "id": { "type": "string" },
+          "strategy_id": { "type": "string" },
+          "timestamp": { "type": "string" },
+          "price": { "type": ["number", "null"] },
+          "context": { "type": "string" },
+          "evaluation": { "type": "object" },
+          "note": { "type": "string" },
+          "created_at": { "type": "string" }
+        },
+        "additionalProperties": true
+      }
+    },
+    "decision_log": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "strategy_id", "timestamp", "action_summary", "created_at"],
+        "properties": {
+          "id": { "type": "string" },
+          "strategy_id": { "type": "string" },
+          "timestamp": { "type": "string" },
+          "action_summary": { "type": "string" },
+          "rationale": { "type": "string" },
+          "linked_checkin_id": {
+            "type": ["string", "null"]
+          },
+          "created_at": { "type": "string" }
+        },
+        "additionalProperties": true
+      }
+    }
+  },
+  "additionalProperties": true
+}
