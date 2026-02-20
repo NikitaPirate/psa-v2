@@ -2,6 +2,26 @@
 
 Command-line interface for PSA strategy evaluation contracts.
 
+Package/install name: `psa-strategy-cli`  
+Command name: `psa`
+
+## Quick start (published package)
+
+Run without installing:
+
+```bash
+uvx --from psa-strategy-cli psa --version
+```
+
+Install as a tool:
+
+```bash
+uv tool install psa-strategy-cli
+psa --version
+```
+
+## Workspace development mode
+
 Run commands from the `cli/` directory:
 
 ```bash
@@ -29,7 +49,7 @@ cd cli
 ### Evaluate point from file to stdout
 
 ```bash
-uv run psa evaluate-point \
+uv run --package psa-strategy-cli psa evaluate-point \
   --input ../examples/bear_accumulate_point.json \
   --output -
 ```
@@ -37,7 +57,7 @@ uv run psa evaluate-point \
 ### Evaluate rows with pretty output file
 
 ```bash
-uv run psa evaluate-rows \
+uv run --package psa-strategy-cli psa evaluate-rows \
   --input ../examples/batch_timeseries_rows.json \
   --output /tmp/rows.json \
   --pretty
@@ -47,7 +67,7 @@ uv run psa evaluate-rows \
 
 ```bash
 cat ../examples/range_timeseries_rows.json | \
-uv run psa evaluate-ranges --input - --output -
+uv run --package psa-strategy-cli psa evaluate-ranges --input - --output -
 ```
 
 ## Exit codes

@@ -27,6 +27,23 @@ Works in `bash`, `zsh`, and `fish`.
 uv sync
 ```
 
+## CLI for users
+
+The published CLI package name is `psa-strategy-cli`, while the executable command is `psa`.
+
+Run without installing:
+
+```bash
+uvx --from psa-strategy-cli psa --version
+```
+
+Install globally as a tool:
+
+```bash
+uv tool install psa-strategy-cli
+psa --version
+```
+
 ## Run tests
 
 ```bash
