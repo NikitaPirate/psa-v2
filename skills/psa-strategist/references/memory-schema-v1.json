@@ -33,31 +33,55 @@
         "updated_at"
       ],
       "properties": {
-        "user_id": { "type": "string" },
-        "language": { "type": "string" },
-        "philosophy": { "type": "string" },
+        "user_id": {
+          "type": "string"
+        },
+        "language": {
+          "type": "string"
+        },
+        "philosophy": {
+          "type": "string"
+        },
         "constraints": {
           "type": "array",
-          "items": { "type": "string" }
+          "items": {
+            "type": "string"
+          }
         },
         "cli_runtime": {
           "type": "object",
           "properties": {
             "mode": {
               "type": "string",
-              "enum": ["auto", "uvx", "tool"]
+              "enum": [
+                "auto",
+                "tool"
+              ]
             },
-            "package_name": { "type": "string" },
-            "command": { "type": "string" },
-            "resolved": { "type": "boolean" },
-            "updated_at": { "type": "string" }
+            "package_name": {
+              "type": "string"
+            },
+            "command": {
+              "type": "string"
+            },
+            "resolved": {
+              "type": "boolean"
+            },
+            "updated_at": {
+              "type": "string"
+            }
           },
           "additionalProperties": true
         },
         "active_strategy_id": {
-          "type": ["string", "null"]
+          "type": [
+            "string",
+            "null"
+          ]
         },
-        "updated_at": { "type": "string" }
+        "updated_at": {
+          "type": "string"
+        }
       },
       "additionalProperties": true
     },
@@ -77,21 +101,39 @@
           "updated_at"
         ],
         "properties": {
-          "id": { "type": "string" },
-          "title": { "type": "string" },
-          "summary": { "type": "string" },
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "summary": {
+            "type": "string"
+          },
           "assumptions": {
             "type": "array",
-            "items": { "type": "string" }
+            "items": {
+              "type": "string"
+            }
           },
           "invalidation_signals": {
             "type": "array",
-            "items": { "type": "string" }
+            "items": {
+              "type": "string"
+            }
           },
-          "horizon": { "type": "string" },
-          "status": { "type": "string" },
-          "created_at": { "type": "string" },
-          "updated_at": { "type": "string" }
+          "horizon": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "updated_at": {
+            "type": "string"
+          }
         },
         "additionalProperties": true
       }
@@ -112,20 +154,40 @@
           "updated_at"
         ],
         "properties": {
-          "id": { "type": "string" },
-          "name": { "type": "string" },
-          "objective": { "type": "string" },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "objective": {
+            "type": "string"
+          },
           "market_mode": {
             "type": "string",
-            "enum": ["bear", "bull"]
+            "enum": [
+              "bear",
+              "bull"
+            ]
           },
-          "notes": { "type": "string" },
-          "status": { "type": "string" },
+          "notes": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
           "latest_version_id": {
-            "type": ["string", "null"]
+            "type": [
+              "string",
+              "null"
+            ]
           },
-          "created_at": { "type": "string" },
-          "updated_at": { "type": "string" }
+          "created_at": {
+            "type": "string"
+          },
+          "updated_at": {
+            "type": "string"
+          }
         },
         "additionalProperties": true
       }
@@ -145,19 +207,38 @@
           "tags"
         ],
         "properties": {
-          "id": { "type": "string" },
-          "strategy_id": { "type": "string" },
-          "label": { "type": "string" },
-          "rationale": { "type": "string" },
-          "created_by": { "type": "string" },
-          "created_at": { "type": "string" },
+          "id": {
+            "type": "string"
+          },
+          "strategy_id": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "rationale": {
+            "type": "string"
+          },
+          "created_by": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string"
+          },
           "strategy_spec": {
             "type": "object",
-            "required": ["market_mode", "price_segments", "time_segments"],
+            "required": [
+              "market_mode",
+              "price_segments",
+              "time_segments"
+            ],
             "properties": {
               "market_mode": {
                 "type": "string",
-                "enum": ["bear", "bull"]
+                "enum": [
+                  "bear",
+                  "bull"
+                ]
               },
               "price_segments": {
                 "type": "array",
@@ -171,7 +252,9 @@
           },
           "tags": {
             "type": "array",
-            "items": { "type": "string" }
+            "items": {
+              "type": "string"
+            }
           }
         },
         "additionalProperties": true
@@ -181,13 +264,29 @@
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["strategy_id", "thesis_id", "rationale", "created_at", "updated_at"],
+        "required": [
+          "strategy_id",
+          "thesis_id",
+          "rationale",
+          "created_at",
+          "updated_at"
+        ],
         "properties": {
-          "strategy_id": { "type": "string" },
-          "thesis_id": { "type": "string" },
-          "rationale": { "type": "string" },
-          "created_at": { "type": "string" },
-          "updated_at": { "type": "string" }
+          "strategy_id": {
+            "type": "string"
+          },
+          "thesis_id": {
+            "type": "string"
+          },
+          "rationale": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "updated_at": {
+            "type": "string"
+          }
         },
         "additionalProperties": true
       }
@@ -196,16 +295,40 @@
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["id", "strategy_id", "timestamp", "created_at"],
+        "required": [
+          "id",
+          "strategy_id",
+          "timestamp",
+          "created_at"
+        ],
         "properties": {
-          "id": { "type": "string" },
-          "strategy_id": { "type": "string" },
-          "timestamp": { "type": "string" },
-          "price": { "type": ["number", "null"] },
-          "context": { "type": "string" },
-          "evaluation": { "type": "object" },
-          "note": { "type": "string" },
-          "created_at": { "type": "string" }
+          "id": {
+            "type": "string"
+          },
+          "strategy_id": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "string"
+          },
+          "price": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "context": {
+            "type": "string"
+          },
+          "evaluation": {
+            "type": "object"
+          },
+          "note": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string"
+          }
         },
         "additionalProperties": true
       }
@@ -214,17 +337,38 @@
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["id", "strategy_id", "timestamp", "action_summary", "created_at"],
+        "required": [
+          "id",
+          "strategy_id",
+          "timestamp",
+          "action_summary",
+          "created_at"
+        ],
         "properties": {
-          "id": { "type": "string" },
-          "strategy_id": { "type": "string" },
-          "timestamp": { "type": "string" },
-          "action_summary": { "type": "string" },
-          "rationale": { "type": "string" },
-          "linked_checkin_id": {
-            "type": ["string", "null"]
+          "id": {
+            "type": "string"
           },
-          "created_at": { "type": "string" }
+          "strategy_id": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "string"
+          },
+          "action_summary": {
+            "type": "string"
+          },
+          "rationale": {
+            "type": "string"
+          },
+          "linked_checkin_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "created_at": {
+            "type": "string"
+          }
         },
         "additionalProperties": true
       }

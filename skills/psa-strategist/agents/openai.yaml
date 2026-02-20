@@ -1,4 +1,4 @@
 interface:
   display_name: "PSA Strategist"
   short_description: "Design and maintain PSA investor strategies"
-  default_prompt: "Use $psa-strategist to build, version, and recall PSA strategies with adaptive rendering and environment-agnostic memory persistence."
+  default_prompt: "Use $psa-strategist to build, version, and recall PSA strategies through CLI-only workflow (`psa` command from `psa-strategy-cli`)."

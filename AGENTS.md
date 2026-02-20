@@ -72,3 +72,9 @@ Do not mix tutorial prose into normative sections.
 
 - Tag-driven release process for `psa-strategy-core` and `psa-strategy-cli` is documented in `docs/RELEASE_RUNBOOK.md`.
 - Keep release process details in the runbook and link to it instead of duplicating instructions in other docs.
+
+## 11. Skill memory schema sync
+
+- For `psa-strategist`, `skills/psa-strategist/references/memory-schema-v1.json` is the agent-facing memory contract reference.
+- Any change to CLI memory shape or save semantics in `cli/src/psa_cli/store.py` or related `create/update strategy-pack` flows must update this schema in the same change.
+- Keep an automated CLI test that validates persisted memory snapshots against `skills/psa-strategist/references/memory-schema-v1.json`.

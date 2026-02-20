@@ -1,34 +1,34 @@
-# Runtime Adapter
+# Runtime Adapter (CLI-only)
 
 ## Goal
-Choose the least-friction execution path for the current agent environment without overloading the user with technical details.
+Use one stable execution path across Codex, Claude Code, and OpenClaw:
+- bootstrap with `uv tool install psa-strategy-cli`,
+- operate through `psa` commands only.
 
-## Capability-First Selection
+## Capability Selection
 At runtime, detect capabilities in this order:
-1. Can run CLI commands (`uvx` or `uv`)?
-2. Can write local files directly?
-3. Is permission escalation required for selected path?
+1. Can run `psa` directly?
+2. If not, can run `uv tool install psa-strategy-cli`?
+3. If still blocked, can user fix PATH (`uv tool update-shell`)?
 
-Use the simplest available path that satisfies requested task.
+Use the simplest available path that satisfies the task.
 
 ## CLI Path
-- Prefer `uvx --from psa-strategy-cli psa ...`.
-- Fallback to `uv tool install psa-strategy-cli` only when `uvx` is unavailable.
-- If neither is available, report blocker and stop execution path cleanly.
+- Preferred operational path: direct `psa ...`.
+- Bootstrap path: `uv tool install psa-strategy-cli`.
+- Do not use `uvx` in normal flow.
+- If runtime remains unavailable, report blocker and stop.
 
 ## Memory Path
-- Follow `memory-commit-policy.md` postconditions.
-- Prefer one logical commit operation.
-- Do not force one command style (`cat <<'JSON'`, `Write`, etc.) as mandatory across environments.
+- Use CLI commands for read/create/update flows.
+- Use one logical save command for persistence (`strategy-pack` commands).
+- Do not depend on local helper scripts.
 
 ## Presentation Path
 - Start with readable comparison layout.
-- If client breaks table rendering, switch to split table, ASCII block, or cards.
-- Keep strategy meaning unchanged when switching layout.
+- If layout is unreadable, rerender as split table, ASCII block, or cards.
+- Keep strategy meaning unchanged across render modes.
 
 ## User Communication
-- Hide implementation details by default.
-- Disclose technical method only when:
-  - user asks,
-  - permission approval is needed,
-  - operation is blocked.
+- Hide technical implementation details by default.
+- Disclose details only when user asks, approval is required, or operation is blocked.

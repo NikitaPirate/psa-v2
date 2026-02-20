@@ -1,87 +1,196 @@
 # psa-strategy-cli
 
-Command-line interface for PSA strategy evaluation contracts.
+CLI package for PSA strategy workflows.
 
 Package/install name: `psa-strategy-cli`  
 Command name: `psa`
 
-## Quick start (published package)
-
-Run without installing:
-
-```bash
-uvx --from psa-strategy-cli psa --version
-```
-
-Install as a tool:
+## Installation
 
 ```bash
 uv tool install psa-strategy-cli
 psa --version
 ```
 
-## Workspace development mode
-
-Run commands from the `cli/` directory:
+If `psa` is not found after install, run:
 
 ```bash
-cd cli
+uv tool update-shell
 ```
+
+## Output contract
+
+Global flags:
+
+- `--format json|text` (default: `json`)
+- `--pretty`
+
+Success envelope (`json` mode):
+
+```json
+{"ok": true, "result": {...}}
+```
+
+Error envelope (always JSON, written to stderr):
+
+```json
+{"ok": false, "error": {"code": "...", "message": "..."}}
+```
+
+Exit codes:
+
+- `0`: success
+- `2`: arguments
+- `3`: runtime
+- `4`: validation
+- `5`: state/not-found/conflict
+- `1`: internal
+
+## Memory model
+
+CLI keeps strategy memory in `psa-memory.v1` format. Default storage is internal:
+
+- `<cwd>/.psa/psa-memory.v1.json`
+
+For tests/debug only you can override path with hidden flag `--db-path`.
 
 ## Commands
 
-- `psa evaluate-point --input <path|-> --output <path|-> [--pretty]`
-- `psa evaluate-rows --input <path|-> --output <path|-> [--pretty]`
-- `psa evaluate-ranges --input <path|-> --output <path|-> [--pretty]`
-- `psa --version`
+### Show
 
-`-` means standard stream (`stdin` for `--input`, `stdout` for `--output`).
+- `psa show runtime`
+- `psa show memory --view summary|full`
+- `psa show strategy --id <strategy_id> --include versions --include theses --include checkins --include decisions`
+- `psa show thesis --id <thesis_id>`
+- `psa show checkins --strategy-id <strategy_id> --limit <n>`
+- `psa show decisions --strategy-id <strategy_id> --limit <n>`
 
-## Input and output
+### Create
 
-- Input must be a JSON request matching the command request schema.
-- Output is JSON response (`{"row": ...}` or `{"rows": [...]}`).
-- By default, output JSON is compact.
-- `--pretty` enables indented output.
+- `psa create thesis ...`
+- `psa create strategy ...`
+- `psa create version ...`
+- `psa create link --strategy-id ... --thesis-id ...`
+- `psa create checkin ...`
+- `psa create decision ...`
+- `psa create strategy-pack --json '<payload>'`
+
+### Update
+
+- `psa update thesis --id ...`
+- `psa update strategy --id ... [--set-active]`
+- `psa update profile ...`
+- `psa update strategy-pack --json '<payload>'`
+
+### Evaluate
+
+- `psa evaluate point --version-id ... --timestamp ... --price ...`
+- `psa evaluate rows --version-id ... --row <timestamp:price> --row <timestamp:price>`
+- `psa evaluate ranges --version-id ... --price-start ... --price-end ... --price-steps ... --time-start ... --time-end ... --time-steps ... [--include-price-breakpoints]`
+
+Inline strategy mode (without saved version):
+
+- `psa evaluate point|rows|ranges --market-mode ... --price-segment <low:high:weight> [--price-segment ...] [--time-segment <start:end:k_start:k_end>]`
 
 ## Examples
 
-### Evaluate point from file to stdout
+### Runtime and empty memory
 
 ```bash
-uv run --package psa-strategy-cli psa evaluate-point \
-  --input ../examples/bear_accumulate_point.json \
-  --output -
+psa show runtime
+psa show memory --view summary
 ```
 
-### Evaluate rows with pretty output file
+### First save in one command
 
 ```bash
-uv run --package psa-strategy-cli psa evaluate-rows \
-  --input ../examples/batch_timeseries_rows.json \
-  --output /tmp/rows.json \
-  --pretty
+psa create strategy-pack --json '{
+  "thesis": {
+    "id": "thesis-1",
+    "title": "Weak market accumulation",
+    "summary": "Base thesis",
+    "assumptions": ["cycle persists"],
+    "invalidation_signals": ["structural break"],
+    "horizon": "2026-12-31",
+    "status": "active"
+  },
+  "strategy": {
+    "id": "strategy-1",
+    "name": "Base bear strategy",
+    "objective": "Accumulate with discipline",
+    "market_mode": "bear",
+    "notes": "initial",
+    "status": "active"
+  },
+  "version": {
+    "id": "version-1",
+    "label": "v1",
+    "rationale": "initial",
+    "created_by": "agent",
+    "strategy_spec": {
+      "market_mode": "bear",
+      "price_segments": [
+        {"price_low": 50000, "price_high": 60000, "weight": 10},
+        {"price_low": 40000, "price_high": 50000, "weight": 30}
+      ],
+      "time_segments": []
+    }
+  },
+  "link": {"rationale": "thesis drives strategy"},
+  "set_active": true
+}'
 ```
 
-### Evaluate ranges with stdin/stdout
+### Revision save in one command
 
 ```bash
-cat ../examples/range_timeseries_rows.json | \
-uv run --package psa-strategy-cli psa evaluate-ranges --input - --output -
+psa update strategy-pack --json '{
+  "strategy": {"id": "strategy-1", "notes": "revision"},
+  "version": {
+    "id": "version-2",
+    "strategy_id": "strategy-1",
+    "label": "v2",
+    "rationale": "higher acceleration",
+    "created_by": "agent",
+    "strategy_spec": {
+      "market_mode": "bear",
+      "price_segments": [
+        {"price_low": 50000, "price_high": 60000, "weight": 10},
+        {"price_low": 40000, "price_high": 50000, "weight": 30}
+      ],
+      "time_segments": [
+        {
+          "start_ts": "2026-01-01T00:00:00Z",
+          "end_ts": "2026-06-01T00:00:00Z",
+          "k_start": 1.0,
+          "k_end": 1.8
+        }
+      ]
+    }
+  },
+  "set_active": true
+}'
 ```
 
-## Exit codes
+### Evaluate by saved version
 
-- `0`: success
-- `2`: CLI argument error
-- `3`: I/O or JSON parsing error
-- `4`: schema/contract/runtime validation error
-- `1`: unexpected internal error
+```bash
+psa evaluate point \
+  --version-id version-1 \
+  --timestamp 2026-03-01T00:00:00Z \
+  --price 42000
+```
 
-## Schema loading
+### Evaluate inline draft
 
-CLI searches request schemas in this order:
-
-1. `PSA_SCHEMA_DIR` (if set)
-2. packaged schemas bundled inside the installed `psa-strategy-cli` distribution
-3. repository `schemas/` directory (development fallback)
+```bash
+psa evaluate point \
+  --market-mode bear \
+  --price-segment 50000:60000:10 \
+  --price-segment 40000:50000:30 \
+  --price-segment 30000:40000:40 \
+  --price-segment 25000:30000:20 \
+  --time-segment 2026-01-01T00:00:00Z:2026-06-01T00:00:00Z:1.0:1.8 \
+  --timestamp 2026-03-01T00:00:00Z \
+  --price 42000
+```

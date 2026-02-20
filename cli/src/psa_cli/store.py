@@ -1,13 +1,17 @@
-#!/usr/bin/env python3
 from __future__ import annotations
 
-import argparse
 import json
-import sys
 import uuid
-from datetime import datetime, timezone
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
+
+try:
+    import fcntl
+except ImportError:  # pragma: no cover - platform guard
+    fcntl = None  # type: ignore[assignment]
 
 SCHEMA_VERSION = "psa-memory.v1"
 
@@ -16,12 +20,16 @@ class StoreError(RuntimeError):
     pass
 
 
+def default_memory_path() -> Path:
+    return Path.cwd() / ".psa" / "psa-memory.v1.json"
+
+
 def _utc_now() -> str:
-    return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+    return datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
 def _new_id(prefix: str) -> str:
-    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
     return f"{prefix}-{stamp}-{uuid.uuid4().hex[:8]}"
 
 
@@ -36,10 +44,10 @@ def _default_store() -> dict[str, Any]:
             "philosophy": "",
             "constraints": [],
             "cli_runtime": {
-                "mode": "auto",
+                "mode": "tool",
                 "package_name": "psa-strategy-cli",
                 "command": "psa",
-                "resolved": False,
+                "resolved": True,
                 "updated_at": now,
             },
             "active_strategy_id": None,
@@ -57,8 +65,24 @@ def _default_store() -> dict[str, Any]:
 def _atomic_write_json(path: Path, payload: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp_path = path.with_suffix(path.suffix + ".tmp")
-    tmp_path.write_text(json.dumps(payload, ensure_ascii=True, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    tmp_path.write_text(
+        json.dumps(payload, ensure_ascii=True, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
     tmp_path.replace(path)
+
+
+@contextmanager
+def _exclusive_lock(path: Path) -> Iterator[None]:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a+", encoding="utf-8") as handle:
+        if fcntl is not None:
+            fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            if fcntl is not None:
+                fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
 
 
 def _load_store(path: Path, *, create_if_missing: bool) -> tuple[dict[str, Any], bool]:
@@ -115,10 +139,10 @@ def _normalize_store(store: dict[str, Any]) -> None:
     profile.setdefault(
         "cli_runtime",
         {
-            "mode": "auto",
+            "mode": "tool",
             "package_name": "psa-strategy-cli",
             "command": "psa",
-            "resolved": False,
+            "resolved": True,
             "updated_at": _utc_now(),
         },
     )
@@ -373,7 +397,7 @@ def _op_add_decision(store: dict[str, Any], payload: dict[str, Any]) -> dict[str
     return {"op": "add_decision", "decision_id": decision_id, "strategy_id": strategy_id}
 
 
-def _apply_one(store: dict[str, Any], operation: dict[str, Any]) -> dict[str, Any]:
+def apply_operation(store: dict[str, Any], operation: dict[str, Any]) -> dict[str, Any]:
     op_name = operation.get("op")
     if op_name == "upsert_profile":
         return _op_upsert_profile(store, operation)
@@ -399,25 +423,13 @@ def _apply_one(store: dict[str, Any], operation: dict[str, Any]) -> dict[str, An
         for item in items:
             if not isinstance(item, dict):
                 raise StoreError("invalid_batch: each op must be an object")
-            results.append(_apply_one(store, item))
+            results.append(apply_operation(store, item))
         return {"op": "batch", "results": results}
 
     raise StoreError(f"unknown_operation: {op_name}")
 
 
-def _read_input(path: str) -> Any:
-    if path == "-":
-        raw = sys.stdin.read()
-    else:
-        raw = Path(path).read_text(encoding="utf-8")
-
-    try:
-        return json.loads(raw)
-    except json.JSONDecodeError as exc:
-        raise StoreError(f"invalid_input_json: {exc}") from exc
-
-
-def _summary(store: dict[str, Any], strategy_id: str | None) -> dict[str, Any]:
+def build_summary(store: dict[str, Any], strategy_id: str | None) -> dict[str, Any]:
     link_map: dict[str, list[str]] = {}
     for item in store["strategy_thesis_links"]:
         if not isinstance(item, dict):
@@ -492,7 +504,11 @@ def _summary(store: dict[str, Any], strategy_id: str | None) -> dict[str, Any]:
         "active_strategy": {
             "id": active_id,
             "name": active_strategy.get("name") if isinstance(active_strategy, dict) else None,
-            "latest_version_id": active_strategy.get("latest_version_id") if isinstance(active_strategy, dict) else None,
+            "latest_version_id": (
+                active_strategy.get("latest_version_id")
+                if isinstance(active_strategy, dict)
+                else None
+            ),
         },
         "counts": {
             "theses": len(store["theses"]),
@@ -507,7 +523,7 @@ def _summary(store: dict[str, Any], strategy_id: str | None) -> dict[str, Any]:
     }
 
 
-def _validate_store(store: dict[str, Any]) -> list[str]:
+def validate_store_integrity(store: dict[str, Any]) -> list[str]:
     issues: list[str] = []
     strategies = store["strategies"]
     theses = store["theses"]
@@ -563,83 +579,81 @@ def _validate_store(store: dict[str, Any]) -> list[str]:
     return issues
 
 
-def _print_json(payload: dict[str, Any]) -> None:
-    json.dump(payload, sys.stdout, ensure_ascii=True, indent=2, sort_keys=True)
-    sys.stdout.write("\n")
+class MemoryStore:
+    def __init__(self, path: Path | None = None) -> None:
+        self.path = path or default_memory_path()
+
+    @property
+    def lock_path(self) -> Path:
+        return self.path.with_suffix(self.path.suffix + ".lock")
+
+    def read(
+        self,
+        *,
+        view: str = "summary",
+        strategy_id: str | None = None,
+        create_if_missing: bool = False,
+    ) -> dict[str, Any]:
+        store, _ = _load_store(self.path, create_if_missing=create_if_missing)
+        if view == "full":
+            return store
+        return build_summary(store, strategy_id)
+
+    def with_store(
+        self,
+        mutator: Callable[[dict[str, Any]], Any],
+        *,
+        create_if_missing: bool,
+    ) -> dict[str, Any]:
+        with _exclusive_lock(self.lock_path):
+            store, _ = _load_store(self.path, create_if_missing=create_if_missing)
+            result = mutator(store)
+            _atomic_write_json(self.path, store)
+            return {
+                "result": result,
+                "updated_at": store.get("updated_at"),
+                "db_path": str(self.path),
+            }
+
+    def apply(self, operation: dict[str, Any], *, create_if_missing: bool = True) -> dict[str, Any]:
+        return self.with_store(
+            lambda store: apply_operation(store, operation),
+            create_if_missing=create_if_missing,
+        )
+
+    def apply_batch(
+        self,
+        operations: list[dict[str, Any]],
+        *,
+        create_if_missing: bool = True,
+    ) -> dict[str, Any]:
+        return self.apply({"op": "batch", "ops": operations}, create_if_missing=create_if_missing)
+
+    def validate(self) -> dict[str, Any]:
+        store = self.read(view="full", create_if_missing=False)
+        issues = validate_store_integrity(store)
+        return {
+            "ok": len(issues) == 0,
+            "issues": issues,
+            "issue_count": len(issues),
+        }
+
+    def get_strategy_spec_by_version(self, version_id: str) -> dict[str, Any]:
+        store = self.read(view="full", create_if_missing=False)
+        version = store.get("strategy_versions", {}).get(version_id)
+        if not isinstance(version, dict):
+            raise StoreError(f"version_not_found: {version_id}")
+
+        spec = version.get("strategy_spec")
+        if not isinstance(spec, dict):
+            raise StoreError(f"strategy_spec_missing: {version_id}")
+        return spec
+
+    def get_full_store(self, *, create_if_missing: bool = False) -> dict[str, Any]:
+        return self.read(view="full", create_if_missing=create_if_missing)
 
 
-def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Manage persistent PSA strategy memory.")
-    parser.add_argument("--db", required=True, help="Path to memory store JSON file.")
-    subparsers = parser.add_subparsers(dest="command", required=True)
-
-    init_parser = subparsers.add_parser("init", help="Create store if missing and normalize shape.")
-    init_parser.add_argument("--force-rewrite", action="store_true", help="Rewrite even if store exists.")
-
-    read_parser = subparsers.add_parser("read", help="Read memory store.")
-    read_parser.add_argument("--view", choices=["summary", "full"], default="summary")
-    read_parser.add_argument("--strategy-id", default=None)
-
-    apply_parser = subparsers.add_parser("apply", help="Apply one operation or a list of operations.")
-    apply_parser.add_argument("--input", required=True, help="JSON file path or '-' for stdin.")
-
-    subparsers.add_parser("validate", help="Validate store references and integrity.")
-
-    args = parser.parse_args(argv)
-    db_path = Path(args.db).resolve()
-
-    try:
-        if args.command == "init":
-            if args.force_rewrite:
-                store = _default_store()
-                _atomic_write_json(db_path, store)
-                _print_json({"ok": True, "created": True, "rewritten": True, "db": str(db_path)})
-                return 0
-
-            store, created = _load_store(db_path, create_if_missing=True)
-            _atomic_write_json(db_path, store)
-            _print_json({"ok": True, "created": created, "rewritten": True, "db": str(db_path)})
-            return 0
-
-        if args.command == "read":
-            store, _ = _load_store(db_path, create_if_missing=False)
-            if args.view == "full":
-                _print_json(store)
-            else:
-                _print_json(_summary(store, args.strategy_id))
-            return 0
-
-        if args.command == "apply":
-            store, _ = _load_store(db_path, create_if_missing=True)
-            payload = _read_input(args.input)
-
-            results = []
-            if isinstance(payload, list):
-                for item in payload:
-                    if not isinstance(item, dict):
-                        raise StoreError("invalid_batch_input: each item must be object")
-                    results.append(_apply_one(store, item))
-            elif isinstance(payload, dict):
-                results.append(_apply_one(store, payload))
-            else:
-                raise StoreError("invalid_input: root must be object or array")
-
-            _atomic_write_json(db_path, store)
-            _print_json({"ok": True, "db": str(db_path), "results": results, "updated_at": store.get("updated_at")})
-            return 0
-
-        if args.command == "validate":
-            store, _ = _load_store(db_path, create_if_missing=False)
-            issues = _validate_store(store)
-            _print_json({"ok": len(issues) == 0, "issues": issues, "issue_count": len(issues)})
-            return 0 if not issues else 1
-
-        raise StoreError(f"unknown_command: {args.command}")
-
-    except StoreError as exc:
-        _print_json({"ok": False, "error": str(exc)})
-        return 1
-
-
-if __name__ == "__main__":
-    raise SystemExit(main())
+def store_error_code(exc: StoreError) -> str:
+    text = str(exc)
+    code, _, _ = text.partition(":")
+    return code.strip().replace(" ", "_") or "store_error"
