@@ -1,20 +1,52 @@
 from __future__ import annotations
 
+import pytest
+from psa_cli.errors import CliArgumentError
 from psa_cli.parser import build_parser
 
 
-def test_parser_parses_evaluate_point_command() -> None:
+def test_parser_parses_strategy_upsert() -> None:
     parser = build_parser()
     args = parser.parse_args(
-        ["evaluate-point", "--input", "request.json", "--output", "-", "--pretty"]
+        [
+            "strategy",
+            "upsert",
+            "--strategy-id",
+            "main",
+            "--input",
+            "strategy.json",
+            "--json",
+        ]
     )
-    assert args.command == "evaluate-point"
-    assert args.input_path == "request.json"
-    assert args.output_path == "-"
+    assert args.command_key == "strategy-upsert"
+    assert args.strategy_id == "main"
+    assert args.input_path == "strategy.json"
+    assert args.json_output is True
+
+
+def test_parser_parses_evaluate_point_with_strategy_id() -> None:
+    parser = build_parser()
+    args = parser.parse_args(
+        [
+            "evaluate-point",
+            "--strategy-id",
+            "main",
+            "--input",
+            "request.json",
+            "--output",
+            "-",
+            "--json",
+            "--pretty",
+        ]
+    )
+    assert args.command_key == "evaluate-point"
+    assert args.strategy_id == "main"
     assert args.pretty is True
 
 
-def test_parser_allows_help_without_command() -> None:
+def test_parser_requires_json_flag() -> None:
     parser = build_parser()
-    args = parser.parse_args([])
-    assert args.command is None
+    with pytest.raises(CliArgumentError):
+        parser.parse_args(
+            ["strategy", "list"],
+        )

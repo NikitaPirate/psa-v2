@@ -17,6 +17,8 @@ REQUEST_SCHEMAS: dict[str, str] = {
     "evaluate-point": "evaluate_point.request.v1.json",
     "evaluate-rows": "evaluate_rows.request.v1.json",
     "evaluate-ranges": "evaluate_rows_from_ranges.request.v1.json",
+    "strategy-upsert": "strategy_upsert.request.v1.json",
+    "log-append": "log_append.request.v1.json",
 }
 
 FORMAT_CHECKER = FormatChecker()

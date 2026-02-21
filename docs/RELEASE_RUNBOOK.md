@@ -41,9 +41,15 @@ uv run pytest
 uv build --package psa-strategy-core --out-dir dist/core
 uv build --package psa-strategy-cli --out-dir dist/cli
 uvx --from dist/cli/*.whl --with dist/core/*.whl psa --version
+uvx --from dist/cli/*.whl --with dist/core/*.whl psa strategy upsert \
+  --strategy-id smoke \
+  --input examples/strategy_bear.json \
+  --json
 uvx --from dist/cli/*.whl --with dist/core/*.whl psa evaluate-point \
-  --input examples/bear_accumulate_point.json \
-  --output -
+  --strategy-id smoke \
+  --input examples/evaluate_point_input.json \
+  --output - \
+  --json
 ```
 
 ## Release flow (tags)
@@ -70,7 +76,15 @@ Run on a machine with `uv`:
 
 ```bash
 uvx --from psa-strategy-cli==X.Y.Z psa --version
-uvx --from psa-strategy-cli==X.Y.Z psa evaluate-point --input examples/bear_accumulate_point.json --output -
+uvx --from psa-strategy-cli==X.Y.Z psa strategy upsert \
+  --strategy-id smoke \
+  --input examples/strategy_bear.json \
+  --json
+uvx --from psa-strategy-cli==X.Y.Z psa evaluate-point \
+  --strategy-id smoke \
+  --input examples/evaluate_point_input.json \
+  --output - \
+  --json
 uv tool install psa-strategy-cli==X.Y.Z
 psa --version
 ```

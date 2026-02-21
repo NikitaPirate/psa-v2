@@ -1,6 +1,6 @@
 # psa-strategy-cli
 
-Command-line interface for PSA strategy evaluation contracts.
+AI-first command-line interface for PSA strategy storage, logs, and evaluation.
 
 Package/install name: `psa-strategy-cli`  
 Command name: `psa`
@@ -28,46 +28,72 @@ Run commands from the `cli/` directory:
 cd cli
 ```
 
+## Storage model
+
+The CLI persists state inside the current working directory:
+
+- `.psa/strategies/<strategy_id>/strategy.json`
+- `.psa/strategies/<strategy_id>/log.ndjson`
+
+Directories are created automatically on first write.
+
+## JSON mode
+
+All operational commands require `--json`.
+
+- Success: JSON payload in output stream.
+- Error: JSON payload in `stderr` with:
+  - `error.code`
+  - `error.message`
+  - `error.details`
+
 ## Commands
 
-- `psa evaluate-point --input <path|-> --output <path|-> [--pretty]`
-- `psa evaluate-rows --input <path|-> --output <path|-> [--pretty]`
-- `psa evaluate-ranges --input <path|-> --output <path|-> [--pretty]`
-- `psa --version`
+### Strategy
+
+- `psa strategy upsert --strategy-id <id> --input <path|-> --json`
+- `psa strategy list --json`
+- `psa strategy show --strategy-id <id> --json`
+- `psa strategy exists --strategy-id <id> --json`
+
+### Log
+
+- `psa log append --strategy-id <id> --input <path|-> --json`
+- `psa log list --strategy-id <id> [--limit <n>] [--from-ts <ts>] [--to-ts <ts>] --json`
+- `psa log show --strategy-id <id> --log-id <id> --json`
+- `psa log tail --strategy-id <id> --limit <n> --json`
+
+### Evaluate (strategy loaded from storage)
+
+- `psa evaluate-point --strategy-id <id> --input <path|-> --output <path|-> --json [--pretty]`
+- `psa evaluate-rows --strategy-id <id> --input <path|-> --output <path|-> --json [--pretty]`
+- `psa evaluate-ranges --strategy-id <id> --input <path|-> --output <path|-> --json [--pretty]`
 
 `-` means standard stream (`stdin` for `--input`, `stdout` for `--output`).
 
-## Input and output
-
-- Input must be a JSON request matching the command request schema.
-- Output is JSON response (`{"row": ...}` or `{"rows": [...]}`).
-- By default, output JSON is compact.
-- `--pretty` enables indented output.
-
 ## Examples
 
-### Evaluate point from file to stdout
+### Create strategy
 
 ```bash
+cat strategy.json | uv run --package psa-strategy-cli psa strategy upsert \
+  --strategy-id main --input - --json
+```
+
+### Append log entry
+
+```bash
+echo '{"event":"thesis_updated","note":"reduced risk"}' | \
+uv run --package psa-strategy-cli psa log append \
+  --strategy-id main --input - --json
+```
+
+### Evaluate point using persisted strategy
+
+```bash
+echo '{"timestamp":"2026-01-01T00:00:00Z","price":45000}' | \
 uv run --package psa-strategy-cli psa evaluate-point \
-  --input ../examples/bear_accumulate_point.json \
-  --output -
-```
-
-### Evaluate rows with pretty output file
-
-```bash
-uv run --package psa-strategy-cli psa evaluate-rows \
-  --input ../examples/batch_timeseries_rows.json \
-  --output /tmp/rows.json \
-  --pretty
-```
-
-### Evaluate ranges with stdin/stdout
-
-```bash
-cat ../examples/range_timeseries_rows.json | \
-uv run --package psa-strategy-cli psa evaluate-ranges --input - --output -
+  --strategy-id main --input - --output - --json
 ```
 
 ## Exit codes
@@ -75,7 +101,7 @@ uv run --package psa-strategy-cli psa evaluate-ranges --input - --output -
 - `0`: success
 - `2`: CLI argument error
 - `3`: I/O or JSON parsing error
-- `4`: schema/contract/runtime validation error
+- `4`: validation/domain/storage error
 - `1`: unexpected internal error
 
 ## Schema loading

@@ -100,3 +100,30 @@ def test_load_schema_falls_back_to_repo_when_packaged_missing(
 
     loaded = schema_module.load_schema(schema_file)
     assert loaded["title"] == "repo"
+
+
+def test_validate_request_accepts_strategy_upsert_payload() -> None:
+    schema_module.load_schema.cache_clear()
+    payload = {
+        "market_mode": "bear",
+        "price_segments": [{"price_low": 1.0, "price_high": 2.0, "weight": 100.0}],
+    }
+    schema_module.validate_request("strategy-upsert", payload)
+
+
+def test_validate_request_rejects_evaluate_point_with_inline_strategy() -> None:
+    schema_module.load_schema.cache_clear()
+    payload = {
+        "strategy": {
+            "market_mode": "bear",
+            "price_segments": [{"price_low": 1.0, "price_high": 2.0, "weight": 100.0}],
+        },
+        "timestamp": "2026-01-01T00:00:00Z",
+        "price": 1.0,
+    }
+    try:
+        schema_module.validate_request("evaluate-point", payload)
+    except Exception as exc:
+        assert "request does not match schema" in str(exc)
+    else:
+        raise AssertionError("expected schema validation failure")
