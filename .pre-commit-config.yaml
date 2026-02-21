@@ -17,3 +17,9 @@ repos:
         language: system
         pass_filenames: false
         stages: [pre-push, manual]
+      - id: pyright
+        name: pyright
+        entry: uv run pyright
+        language: system
+        pass_filenames: false
+        stages: [pre-push, manual]

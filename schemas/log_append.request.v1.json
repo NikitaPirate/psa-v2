@@ -1,0 +1,6 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://psa-v2.dev/schemas/log_append.request.v1.json",
+  "title": "LogAppendRequestV1",
+  "type": "object"
+}

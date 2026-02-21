@@ -56,8 +56,7 @@ def _version_from_tag(tag: str) -> str:
 def main() -> int:
     parser = argparse.ArgumentParser(
         description=(
-            "Validate lockstep release versions for "
-            f"{CORE_PACKAGE_NAME} and {CLI_PACKAGE_NAME}."
+            f"Validate lockstep release versions for {CORE_PACKAGE_NAME} and {CLI_PACKAGE_NAME}."
         )
     )
     parser.add_argument("--tag", required=True, help="Git tag, for example v0.1.0")
@@ -72,20 +71,15 @@ def main() -> int:
     cli_version = _extract_version(cli_pyproject)
 
     if core_version != expected_version:
-        raise SystemExit(
-            f"core version mismatch: tag={expected_version}, core={core_version}"
-        )
+        raise SystemExit(f"core version mismatch: tag={expected_version}, core={core_version}")
     if cli_version != expected_version:
-        raise SystemExit(
-            f"cli version mismatch: tag={expected_version}, cli={cli_version}"
-        )
+        raise SystemExit(f"cli version mismatch: tag={expected_version}, cli={cli_version}")
 
     core_dependency = _extract_cli_core_dependency(cli_pyproject)
     expected_dependency = f"{CORE_PACKAGE_NAME}=={expected_version}"
     if core_dependency != expected_dependency:
         raise SystemExit(
-            "cli dependency mismatch: "
-            f"expected '{expected_dependency}', found '{core_dependency}'"
+            f"cli dependency mismatch: expected '{expected_dependency}', found '{core_dependency}'"
         )
 
     print(

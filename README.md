@@ -1,7 +1,7 @@
 # PSA Platform
 
 Monorepo workspace for PSA tooling (engine, CLI, API, integrations).  
-Current implemented module: a compact, deterministic Python core for directional `price × time` share strategies designed for LLM agents.
+Current implemented modules: deterministic computation core plus AI-first stateful CLI for strategy/log workflows.
 
 ## Scope (Phase 0)
 
@@ -43,6 +43,17 @@ Install globally as a tool:
 uv tool install psa-strategy-cli
 psa --version
 ```
+
+Stateful CLI storage layout (inside current working directory):
+
+- `.psa/strategies/<strategy_id>/strategy.json`
+- `.psa/strategies/<strategy_id>/log.ndjson`
+
+Core command groups:
+
+- `psa strategy ...` for strategy CRUD-lite (`upsert/list/show/exists`)
+- `psa log ...` for append-only journal (`append/list/show/tail`)
+- `psa evaluate-* --strategy-id <id>` for computation over persisted strategies
 
 ## Run tests
 
