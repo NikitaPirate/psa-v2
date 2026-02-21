@@ -72,8 +72,8 @@ For tests/debug you can override path with hidden flag `--db-path`.
 - `psa upsert profile ...`
 - `psa upsert version ...`
 - `psa upsert link --strategy-id ... --thesis-id ...`
-- `psa upsert checkin ...` (idempotent by `--id`)
-- `psa upsert decision ...` (idempotent by `--id`)
+- `psa upsert checkin ...` (idempotent by `--id`; fails on legacy duplicate ids)
+- `psa upsert decision ...` (idempotent by `--id`; fails on legacy duplicate ids)
 - `psa upsert strategy-state --json '<payload>'`
 
 ### Evaluate

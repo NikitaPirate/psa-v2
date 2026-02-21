@@ -171,11 +171,12 @@ def _require_thesis(store: dict[str, Any], thesis_id: str) -> dict[str, Any]:
     return thesis
 
 
-def _find_event_index(events: list[Any], event_id: str) -> int | None:
+def _find_event_indices(events: list[Any], event_id: str) -> list[int]:
+    indices: list[int] = []
     for idx, item in enumerate(events):
         if isinstance(item, dict) and item.get("id") == event_id:
-            return idx
-    return None
+            indices.append(idx)
+    return indices
 
 
 def _validate_strategy_spec(spec: Any) -> dict[str, Any]:
@@ -363,7 +364,10 @@ def _op_upsert_checkin(store: dict[str, Any], payload: dict[str, Any]) -> dict[s
     checkin_id = (
         checkin_raw_id if isinstance(checkin_raw_id, str) and checkin_raw_id else _new_id("checkin")
     )
-    existing_index = _find_event_index(store["checkins"], checkin_id)
+    matching_indices = _find_event_indices(store["checkins"], checkin_id)
+    if len(matching_indices) > 1:
+        raise StoreError(f"checkin_conflict_duplicate_id: {checkin_id}")
+    existing_index = matching_indices[0] if matching_indices else None
     existing = (
         store["checkins"][existing_index]
         if existing_index is not None and isinstance(store["checkins"][existing_index], dict)
@@ -405,7 +409,10 @@ def _op_upsert_decision(store: dict[str, Any], payload: dict[str, Any]) -> dict[
         if isinstance(decision_raw_id, str) and decision_raw_id
         else _new_id("decision")
     )
-    existing_index = _find_event_index(store["decision_log"], decision_id)
+    matching_indices = _find_event_indices(store["decision_log"], decision_id)
+    if len(matching_indices) > 1:
+        raise StoreError(f"decision_conflict_duplicate_id: {decision_id}")
+    existing_index = matching_indices[0] if matching_indices else None
     existing = (
         store["decision_log"][existing_index]
         if existing_index is not None and isinstance(store["decision_log"][existing_index], dict)

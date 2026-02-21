@@ -373,6 +373,122 @@ def test_upsert_checkin_and_decision_are_idempotent_by_id(tmp_path: Path) -> Non
     assert decisions_data["result"]["decisions"][0]["rationale"] == "retry-update"
 
 
+def test_upsert_checkin_fails_on_legacy_duplicate_ids(tmp_path: Path) -> None:
+    db = tmp_path / "memory.json"
+    created = _run_cli(
+        [
+            "--db-path",
+            str(db),
+            "upsert",
+            "strategy-state",
+            "--json",
+            json.dumps(_upsert_strategy_state_payload()),
+        ]
+    )
+    assert created.returncode == 0, created.stderr
+
+    store_payload = json.loads(db.read_text(encoding="utf-8"))
+    store_payload["checkins"] = [
+        {
+            "id": "dup-checkin-1",
+            "strategy_id": "strategy-1",
+            "timestamp": "2026-03-01T00:00:00Z",
+            "price": 42000,
+            "context": "legacy-1",
+            "evaluation": {},
+            "note": "legacy-1",
+            "created_at": "2026-03-01T00:00:00Z",
+        },
+        {
+            "id": "dup-checkin-1",
+            "strategy_id": "strategy-1",
+            "timestamp": "2026-03-02T00:00:00Z",
+            "price": 41900,
+            "context": "legacy-2",
+            "evaluation": {},
+            "note": "legacy-2",
+            "created_at": "2026-03-02T00:00:00Z",
+        },
+    ]
+    db.write_text(json.dumps(store_payload), encoding="utf-8")
+
+    completed = _run_cli(
+        [
+            "--db-path",
+            str(db),
+            "upsert",
+            "checkin",
+            "--id",
+            "dup-checkin-1",
+            "--strategy-id",
+            "strategy-1",
+            "--note",
+            "retry",
+        ]
+    )
+    assert completed.returncode == 5
+    envelope = _decode_envelope(completed.stderr)
+    assert envelope["ok"] is False
+    assert envelope["error"]["code"] == "checkin_conflict_duplicate_id"
+
+
+def test_upsert_decision_fails_on_legacy_duplicate_ids(tmp_path: Path) -> None:
+    db = tmp_path / "memory.json"
+    created = _run_cli(
+        [
+            "--db-path",
+            str(db),
+            "upsert",
+            "strategy-state",
+            "--json",
+            json.dumps(_upsert_strategy_state_payload()),
+        ]
+    )
+    assert created.returncode == 0, created.stderr
+
+    store_payload = json.loads(db.read_text(encoding="utf-8"))
+    store_payload["decision_log"] = [
+        {
+            "id": "dup-decision-1",
+            "strategy_id": "strategy-1",
+            "timestamp": "2026-03-01T00:00:00Z",
+            "action_summary": "hold",
+            "rationale": "legacy-1",
+            "linked_checkin_id": None,
+            "created_at": "2026-03-01T00:00:00Z",
+        },
+        {
+            "id": "dup-decision-1",
+            "strategy_id": "strategy-1",
+            "timestamp": "2026-03-02T00:00:00Z",
+            "action_summary": "hold",
+            "rationale": "legacy-2",
+            "linked_checkin_id": None,
+            "created_at": "2026-03-02T00:00:00Z",
+        },
+    ]
+    db.write_text(json.dumps(store_payload), encoding="utf-8")
+
+    completed = _run_cli(
+        [
+            "--db-path",
+            str(db),
+            "upsert",
+            "decision",
+            "--id",
+            "dup-decision-1",
+            "--strategy-id",
+            "strategy-1",
+            "--action-summary",
+            "hold",
+        ]
+    )
+    assert completed.returncode == 5
+    envelope = _decode_envelope(completed.stderr)
+    assert envelope["ok"] is False
+    assert envelope["error"]["code"] == "decision_conflict_duplicate_id"
+
+
 def test_evaluate_rejects_strategy_id_with_inline_flags(tmp_path: Path) -> None:
     db = tmp_path / "memory.json"
     created = _run_cli(
