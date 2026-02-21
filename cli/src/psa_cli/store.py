@@ -24,11 +24,16 @@ def _utc_now_iso() -> str:
 def _parse_iso_datetime(value: str, *, field_name: str) -> datetime:
     normalized = value[:-1] + "+00:00" if value.endswith("Z") else value
     try:
-        return datetime.fromisoformat(normalized)
+        parsed = datetime.fromisoformat(normalized)
     except ValueError as exc:
         raise CliValidationError(
             f"field '{field_name}' must be RFC3339 date-time"
         ) from exc
+    if parsed.tzinfo is None or parsed.utcoffset() is None:
+        raise CliValidationError(
+            f"field '{field_name}' must include timezone offset"
+        )
+    return parsed
 
 
 def _ensure_mapping(value: Any, *, name: str) -> Mapping[str, Any]:
@@ -96,10 +101,10 @@ def _read_json_file(path: Path) -> Mapping[str, Any]:
 
 
 def _write_atomic_json(path: Path, payload: Mapping[str, Any]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
     tmp_path = path.parent / f".{path.name}.{uuid.uuid4().hex}.tmp"
     text = json.dumps(payload, separators=(",", ":"), sort_keys=False) + "\n"
     try:
+        path.parent.mkdir(parents=True, exist_ok=True)
         with tmp_path.open("w", encoding="utf-8") as handle:
             handle.write(text)
             handle.flush()

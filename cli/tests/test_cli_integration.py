@@ -203,3 +203,48 @@ def test_cli_error_codes_and_error_json_format(tmp_path: Path) -> None:
     )
     assert bad_schema.returncode == 4
     _assert_error_payload(bad_schema.stderr, code="validation_error")
+
+
+def test_log_list_rejects_timezone_less_from_ts(tmp_path: Path) -> None:
+    created = _run_cli(
+        ["strategy", "upsert", "--strategy-id", "main", "--input", "-", "--json"],
+        cwd=tmp_path,
+        input_text=json.dumps(_strategy_payload()),
+    )
+    assert created.returncode == 0, created.stderr
+
+    appended = _run_cli(
+        ["log", "append", "--strategy-id", "main", "--input", "-", "--json"],
+        cwd=tmp_path,
+        input_text=json.dumps({"event": "x"}),
+    )
+    assert appended.returncode == 0, appended.stderr
+
+    listed = _run_cli(
+        [
+            "log",
+            "list",
+            "--strategy-id",
+            "main",
+            "--from-ts",
+            "2026-01-01T00:00:00",
+            "--json",
+        ],
+        cwd=tmp_path,
+    )
+    assert listed.returncode == 4
+    _assert_error_payload(listed.stderr, code="validation_error")
+
+
+def test_strategy_upsert_directory_conflict_is_storage_error(tmp_path: Path) -> None:
+    strategies_dir = tmp_path / ".psa" / "strategies"
+    strategies_dir.mkdir(parents=True, exist_ok=True)
+    (strategies_dir / "main").write_text("conflict", encoding="utf-8")
+
+    upsert = _run_cli(
+        ["strategy", "upsert", "--strategy-id", "main", "--input", "-", "--json"],
+        cwd=tmp_path,
+        input_text=json.dumps(_strategy_payload()),
+    )
+    assert upsert.returncode == 4
+    _assert_error_payload(upsert.stderr, code="storage_error")

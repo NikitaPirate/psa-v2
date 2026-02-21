@@ -17,8 +17,16 @@ LOCK_POLL_INTERVAL_SECONDS = 0.05
 def exclusive_lock(
     lock_path: Path, *, timeout_seconds: float = LOCK_TIMEOUT_SECONDS
 ) -> Iterator[None]:
-    lock_path.parent.mkdir(parents=True, exist_ok=True)
-    fd = os.open(lock_path, os.O_CREAT | os.O_RDWR, 0o600)
+    fd: int | None = None
+    try:
+        lock_path.parent.mkdir(parents=True, exist_ok=True)
+        fd = os.open(lock_path, os.O_CREAT | os.O_RDWR, 0o600)
+    except OSError as exc:
+        raise CliDomainError(
+            "storage_error",
+            f"failed to initialize lock {lock_path}",
+            details={"lock_path": str(lock_path), "reason": exc.strerror or str(exc)},
+        ) from exc
 
     start = time.monotonic()
     acquired = False
@@ -38,6 +46,7 @@ def exclusive_lock(
                 time.sleep(LOCK_POLL_INTERVAL_SECONDS)
         yield
     finally:
-        if acquired:
+        if acquired and fd is not None:
             fcntl.flock(fd, fcntl.LOCK_UN)
-        os.close(fd)
+        if fd is not None:
+            os.close(fd)
