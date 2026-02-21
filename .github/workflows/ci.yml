@@ -37,8 +37,14 @@ jobs:
       - name: Smoke test version from local wheels
         run: uvx --from dist/cli/*.whl --with dist/core/*.whl psa --version
 
-      - name: Smoke test evaluate-point from local wheels
+      - name: Smoke test strategy upsert and evaluate-point from local wheels
         run: |
+          uvx --from dist/cli/*.whl --with dist/core/*.whl psa strategy upsert \
+            --strategy-id smoke \
+            --input examples/strategy_bear.json \
+            --json
           uvx --from dist/cli/*.whl --with dist/core/*.whl psa evaluate-point \
-            --input examples/bear_accumulate_point.json \
-            --output -
+            --strategy-id smoke \
+            --input examples/evaluate_point_input.json \
+            --output - \
+            --json
