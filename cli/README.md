@@ -48,11 +48,11 @@ Exit codes:
 
 ## Memory model
 
-CLI keeps strategy memory in `psa-memory.v1` format. Default storage is internal:
+CLI keeps strategy memory in `psa-memory.v1` format. Default storage is:
 
 - `<cwd>/.psa/psa-memory.v1.json`
 
-For tests/debug only you can override path with hidden flag `--db-path`.
+For tests/debug you can override path with hidden flag `--db-path`.
 
 ## Commands
 
@@ -65,32 +65,28 @@ For tests/debug only you can override path with hidden flag `--db-path`.
 - `psa show checkins --strategy-id <strategy_id> --limit <n>`
 - `psa show decisions --strategy-id <strategy_id> --limit <n>`
 
-### Create
+### Upsert
 
-- `psa create thesis ...`
-- `psa create strategy ...`
-- `psa create version ...`
-- `psa create link --strategy-id ... --thesis-id ...`
-- `psa create checkin ...`
-- `psa create decision ...`
-- `psa create strategy-pack --json '<payload>'`
-
-### Update
-
-- `psa update thesis --id ...`
-- `psa update strategy --id ... [--set-active]`
-- `psa update profile ...`
-- `psa update strategy-pack --json '<payload>'`
+- `psa upsert thesis ...`
+- `psa upsert strategy ... [--set-active]`
+- `psa upsert profile ...`
+- `psa upsert version ...`
+- `psa upsert link --strategy-id ... --thesis-id ...`
+- `psa upsert checkin ...`
+- `psa upsert decision ...`
+- `psa upsert strategy-state --json '<payload>'`
 
 ### Evaluate
 
-- `psa evaluate point --version-id ... --timestamp ... --price ...`
-- `psa evaluate rows --version-id ... --row <timestamp:price> --row <timestamp:price>`
-- `psa evaluate ranges --version-id ... --price-start ... --price-end ... --price-steps ... --time-start ... --time-end ... --time-steps ... [--include-price-breakpoints]`
-
-Inline strategy mode (without saved version):
-
-- `psa evaluate point|rows|ranges --market-mode ... --price-segment <low:high:weight> [--price-segment ...] [--time-segment <start:end:k_start:k_end>]`
+- default flow (latest strategy version):
+  - `psa evaluate point --timestamp ... --price ...`
+  - `psa evaluate rows --row <timestamp:price> --row <timestamp:price>`
+  - `psa evaluate ranges --price-start ... --price-end ... --price-steps ... --time-start ... --time-end ... --time-steps ... [--include-price-breakpoints]`
+- optional explicit sources:
+  - `--version-id <id>`
+  - `--strategy-id <id>` (use latest version of selected strategy)
+- inline draft mode:
+  - `psa evaluate point|rows|ranges --market-mode ... --price-segment <low:high:weight> [--price-segment ...] [--time-segment <start:end:k_start:k_end>]`
 
 ## Examples
 
@@ -104,7 +100,7 @@ psa show memory --view summary
 ### First save in one command
 
 ```bash
-psa create strategy-pack --json '{
+psa upsert strategy-state --json '{
   "thesis": {
     "id": "thesis-1",
     "title": "Weak market accumulation",
@@ -144,8 +140,7 @@ psa create strategy-pack --json '{
 ### Revision save in one command
 
 ```bash
-psa update strategy-pack --json '{
-  "strategy": {"id": "strategy-1", "notes": "revision"},
+psa upsert strategy-state --json '{
   "version": {
     "id": "version-2",
     "strategy_id": "strategy-1",
@@ -172,25 +167,19 @@ psa update strategy-pack --json '{
 }'
 ```
 
-### Evaluate by saved version
+### Evaluate by latest version (default)
 
 ```bash
 psa evaluate point \
-  --version-id version-1 \
   --timestamp 2026-03-01T00:00:00Z \
   --price 42000
 ```
 
-### Evaluate inline draft
+### Evaluate with explicit version override
 
 ```bash
 psa evaluate point \
-  --market-mode bear \
-  --price-segment 50000:60000:10 \
-  --price-segment 40000:50000:30 \
-  --price-segment 30000:40000:40 \
-  --price-segment 25000:30000:20 \
-  --time-segment 2026-01-01T00:00:00Z:2026-06-01T00:00:00Z:1.0:1.8 \
+  --version-id version-1 \
   --timestamp 2026-03-01T00:00:00Z \
   --price 42000
 ```

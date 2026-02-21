@@ -28,9 +28,9 @@ psa show memory --view summary
 psa show strategy --id strategy-1 --include versions --include theses
 ```
 
-## Atomic First Save
+## Atomic Save
 ```bash
-psa create strategy-pack --json '{
+psa upsert strategy-state --json '{
   "thesis": {"id": "thesis-1", "title": "Weak market accumulation"},
   "strategy": {
     "id": "strategy-1",
@@ -56,33 +56,15 @@ psa create strategy-pack --json '{
 }'
 ```
 
-## Atomic Revision Save
+## Evaluate by Latest (Default)
 ```bash
-psa update strategy-pack --json '{
-  "strategy": {"id": "strategy-1", "notes": "revision"},
-  "version": {
-    "id": "version-2",
-    "strategy_id": "strategy-1",
-    "label": "v2",
-    "rationale": "increase acceleration",
-    "created_by": "agent",
-    "strategy_spec": {
-      "market_mode": "bear",
-      "price_segments": [
-        {"price_low": 50000, "price_high": 60000, "weight": 10},
-        {"price_low": 40000, "price_high": 50000, "weight": 30}
-      ],
-      "time_segments": []
-    }
-  },
-  "set_active": true
-}'
+psa evaluate point --timestamp 2026-03-01T00:00:00Z --price 42000
+psa evaluate rows --row 2026-02-01T00:00:00Z:47000 --row 2026-03-01T00:00:00Z:44000
 ```
 
-## Evaluate by Version
+## Evaluate by Explicit Version (Optional)
 ```bash
 psa evaluate point --version-id version-1 --timestamp 2026-03-01T00:00:00Z --price 42000
-psa evaluate rows --version-id version-1 --row 2026-02-01T00:00:00Z:47000 --row 2026-03-01T00:00:00Z:44000
 ```
 
 ## Evaluate Inline Draft

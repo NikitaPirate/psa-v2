@@ -76,5 +76,5 @@ Do not mix tutorial prose into normative sections.
 ## 11. Skill memory schema sync
 
 - For `psa-strategist`, `skills/psa-strategist/references/memory-schema-v1.json` is the agent-facing memory contract reference.
-- Any change to CLI memory shape or save semantics in `cli/src/psa_cli/store.py` or related `create/update strategy-pack` flows must update this schema in the same change.
+- Any change to CLI memory shape or save semantics in `cli/src/psa_cli/store.py` or related `upsert strategy-state` flow must update this schema in the same change.
 - Keep an automated CLI test that validates persisted memory snapshots against `skills/psa-strategist/references/memory-schema-v1.json`.

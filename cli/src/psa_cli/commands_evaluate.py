@@ -13,6 +13,10 @@ from psa_cli.errors import CliValidationError
 from psa_cli.store import MemoryStore
 
 
+def _has_inline_spec(args: Any) -> bool:
+    return bool(args.market_mode is not None or args.price_segments or args.time_segments)
+
+
 def _inline_strategy_spec(args: Any) -> dict[str, Any]:
     if args.market_mode is None:
         raise CliValidationError(
@@ -32,11 +36,29 @@ def _inline_strategy_spec(args: Any) -> dict[str, Any]:
 
 
 def _resolve_strategy_spec(args: Any, store: MemoryStore) -> tuple[dict[str, Any], str]:
+    inline_spec = _has_inline_spec(args)
+
+    if args.version_id and inline_spec:
+        raise CliValidationError(
+            "cannot combine --version-id with inline strategy flags",
+            error_code="conflicting_strategy_source",
+        )
+
+    if args.version_id and args.strategy_id:
+        raise CliValidationError(
+            "cannot combine --version-id with --strategy-id",
+            error_code="conflicting_strategy_source",
+        )
+
     if args.version_id:
         spec = store.get_strategy_spec_by_version(args.version_id)
         return spec, f"version:{args.version_id}"
 
-    return _inline_strategy_spec(args), "inline"
+    if inline_spec:
+        return _inline_strategy_spec(args), "inline"
+
+    spec, strategy_id, version_id = store.get_latest_strategy_spec(strategy_id=args.strategy_id)
+    return spec, f"latest:{strategy_id}:{version_id}"
 
 
 def execute_evaluate(args: Any, store: MemoryStore) -> dict[str, Any]:

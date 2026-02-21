@@ -3,7 +3,7 @@
 ## Default Output Shape
 1. One-paragraph summary in plain language.
 2. Comparison view in readable layout (table/cards/ASCII block).
-3. Action prompt in plain language (save/update/compare).
+3. Action prompt in plain language (save/upsert/compare).
 
 ## Adaptive Rendering Ladder
 Use the first readable option, then fallback as needed:

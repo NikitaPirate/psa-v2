@@ -30,18 +30,7 @@ def _build_strategy_spec_from_args(args: Any) -> dict[str, Any]:
     }
 
 
-def apply_strategy_pack(
-    store: MemoryStore,
-    payload: dict[str, Any],
-    *,
-    mode: str,
-) -> dict[str, Any]:
-    if mode not in {"create", "update"}:
-        raise CliValidationError(
-            "invalid strategy-pack mode",
-            error_code="invalid_strategy_pack_mode",
-        )
-
+def apply_strategy_state(store: MemoryStore, payload: dict[str, Any]) -> dict[str, Any]:
     def _mutator(state: dict[str, Any]) -> dict[str, Any]:
         results: list[dict[str, Any]] = []
 
@@ -53,16 +42,8 @@ def apply_strategy_pack(
         decision_input = payload.get("decision")
         set_active = bool(payload.get("set_active"))
 
-        if mode == "create":
-            if not isinstance(thesis_input, dict):
-                raise StoreError("invalid_strategy_pack: thesis is required")
-            if not isinstance(strategy_input, dict):
-                raise StoreError("invalid_strategy_pack: strategy is required")
-            if not isinstance(version_input, dict):
-                raise StoreError("invalid_strategy_pack: version is required")
-
-        if mode == "update" and not isinstance(version_input, dict):
-            raise StoreError("invalid_strategy_pack: version is required")
+        if not isinstance(version_input, dict):
+            raise StoreError("invalid_strategy_state: version is required")
 
         thesis_id: str | None = None
         if isinstance(thesis_input, dict):
@@ -82,20 +63,24 @@ def apply_strategy_pack(
             results.append(strategy_result)
             strategy_id = strategy_result.get("strategy_id")
 
-        if strategy_id is None and isinstance(version_input, dict):
+        if strategy_id is None:
             sid = version_input.get("strategy_id")
             if isinstance(sid, str) and sid:
                 strategy_id = sid
 
-        if strategy_id is None:
-            raise StoreError("invalid_strategy_pack: strategy_id cannot be resolved")
+        if strategy_id is None and isinstance(link_input, dict):
+            sid = link_input.get("strategy_id")
+            if isinstance(sid, str) and sid:
+                strategy_id = sid
 
-        if mode == "update" and strategy_id not in state.get("strategies", {}):
+        if strategy_id is None:
+            raise StoreError("invalid_strategy_state: strategy_id cannot be resolved")
+
+        if strategy_id not in state.get("strategies", {}):
             raise StoreError(f"strategy_not_found: {strategy_id}")
 
-        version_payload = deepcopy(version_input) if isinstance(version_input, dict) else {}
-        if not version_payload.get("strategy_id"):
-            version_payload["strategy_id"] = strategy_id
+        version_payload = deepcopy(version_input)
+        version_payload.setdefault("strategy_id", strategy_id)
         version_result = apply_operation(
             state,
             {"op": "add_strategy_version", "version": version_payload},
@@ -110,9 +95,6 @@ def apply_strategy_pack(
                 thesis_candidate = link_input.get("thesis_id")
                 if isinstance(thesis_candidate, str) and thesis_candidate:
                     thesis_id = thesis_candidate
-
-        if mode == "create" and thesis_id is None:
-            raise StoreError("invalid_strategy_pack: thesis_id cannot be resolved")
 
         if thesis_id is not None:
             link_result = apply_operation(
@@ -163,7 +145,7 @@ def apply_strategy_pack(
             results.append(decision_result)
 
         return {
-            "op": f"{mode}_strategy_pack",
+            "op": "upsert_strategy_state",
             "strategy_id": strategy_id,
             "thesis_id": thesis_id,
             "version_id": version_id,
@@ -173,8 +155,8 @@ def apply_strategy_pack(
     return store.with_store(_mutator, create_if_missing=True)
 
 
-def execute_create(args: Any, store: MemoryStore) -> dict[str, Any]:
-    if args.create_command == "thesis":
+def execute_upsert(args: Any, store: MemoryStore) -> dict[str, Any]:
+    if args.upsert_command == "thesis":
         if args.json:
             payload = parse_json_string(args.json, field_name="--json")
         else:
@@ -192,9 +174,9 @@ def execute_create(args: Any, store: MemoryStore) -> dict[str, Any]:
                 }
             )
         tx = store.apply({"op": "upsert_thesis", "thesis": payload}, create_if_missing=True)
-        return {"command": "create thesis", **tx}
+        return {"command": "upsert thesis", **tx}
 
-    if args.create_command == "strategy":
+    if args.upsert_command == "strategy":
         if args.json:
             payload = parse_json_string(args.json, field_name="--json")
         else:
@@ -208,10 +190,54 @@ def execute_create(args: Any, store: MemoryStore) -> dict[str, Any]:
                     "status": args.status,
                 }
             )
-        tx = store.apply({"op": "upsert_strategy", "strategy": payload}, create_if_missing=True)
-        return {"command": "create strategy", **tx}
 
-    if args.create_command == "version":
+        operations = [{"op": "upsert_strategy", "strategy": payload}]
+        if args.set_active:
+            strategy_id = payload.get("id")
+            if not isinstance(strategy_id, str) or not strategy_id:
+                raise CliValidationError(
+                    "--set-active requires strategy id (in --id or --json)",
+                    error_code="missing_strategy_id",
+                )
+            operations.append({"op": "set_active_strategy", "strategy_id": strategy_id})
+
+        tx = store.apply_batch(operations, create_if_missing=True)
+        return {"command": "upsert strategy", **tx}
+
+    if args.upsert_command == "profile":
+        runtime: dict[str, Any] | None = None
+        if any(
+            value is not None
+            for value in (
+                args.runtime_mode,
+                args.runtime_package,
+                args.runtime_command,
+                args.runtime_resolved,
+            )
+        ):
+            runtime = _compact_dict(
+                {
+                    "mode": args.runtime_mode,
+                    "package_name": args.runtime_package,
+                    "command": args.runtime_command,
+                    "resolved": args.runtime_resolved,
+                }
+            )
+
+        payload = _compact_dict(
+            {
+                "user_id": args.user_id,
+                "language": args.language,
+                "philosophy": args.philosophy,
+                "constraints": args.constraint if args.constraint is not None else None,
+                "active_strategy_id": args.active_strategy_id,
+                "cli_runtime": runtime,
+            }
+        )
+        tx = store.apply({"op": "upsert_profile", "profile": payload}, create_if_missing=True)
+        return {"command": "upsert profile", **tx}
+
+    if args.upsert_command == "version":
         if args.json:
             version_payload = parse_json_string(args.json, field_name="--json")
         else:
@@ -230,9 +256,9 @@ def execute_create(args: Any, store: MemoryStore) -> dict[str, Any]:
             {"op": "add_strategy_version", "version": version_payload},
             create_if_missing=False,
         )
-        return {"command": "create version", **tx}
+        return {"command": "upsert version", **tx}
 
-    if args.create_command == "link":
+    if args.upsert_command == "link":
         tx = store.apply(
             {
                 "op": "link_strategy_thesis",
@@ -244,9 +270,9 @@ def execute_create(args: Any, store: MemoryStore) -> dict[str, Any]:
             },
             create_if_missing=False,
         )
-        return {"command": "create link", **tx}
+        return {"command": "upsert link", **tx}
 
-    if args.create_command == "checkin":
+    if args.upsert_command == "checkin":
         evaluation = (
             parse_json_string(args.evaluation_json, field_name="--evaluation-json")
             if args.evaluation_json
@@ -264,9 +290,9 @@ def execute_create(args: Any, store: MemoryStore) -> dict[str, Any]:
             }
         )
         tx = store.apply({"op": "add_checkin", "checkin": payload}, create_if_missing=False)
-        return {"command": "create checkin", **tx}
+        return {"command": "upsert checkin", **tx}
 
-    if args.create_command == "decision":
+    if args.upsert_command == "decision":
         payload = _compact_dict(
             {
                 "id": args.id,
@@ -278,14 +304,14 @@ def execute_create(args: Any, store: MemoryStore) -> dict[str, Any]:
             }
         )
         tx = store.apply({"op": "add_decision", "decision": payload}, create_if_missing=False)
-        return {"command": "create decision", **tx}
+        return {"command": "upsert decision", **tx}
 
-    if args.create_command == "strategy-pack":
+    if args.upsert_command == "strategy-state":
         payload = parse_json_string(args.json, field_name="--json")
-        tx = apply_strategy_pack(store, payload, mode="create")
-        return {"command": "create strategy-pack", **tx}
+        tx = apply_strategy_state(store, payload)
+        return {"command": "upsert strategy-state", **tx}
 
     raise CliStateError(
-        f"unsupported create command: {args.create_command}",
+        f"unsupported upsert command: {args.upsert_command}",
         error_code="unsupported_command",
     )

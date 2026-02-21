@@ -17,8 +17,7 @@ After successful strategy save, memory must contain:
 
 ## Logical Commit Rule
 - Use one logical commit boundary per user save action.
-- First save: prefer `psa create strategy-pack --json ...`.
-- Revision save: prefer `psa update strategy-pack --json ...`.
+- Prefer: `psa upsert strategy-state --json ...`.
 
 ## Write-Method Contract
 - The skill must persist via PSA CLI operations.

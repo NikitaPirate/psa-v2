@@ -39,6 +39,7 @@ def _store_error_to_cli_error(exc: StoreError) -> CliError:
     if (
         code.endswith("_not_found")
         or code.endswith("_missing")
+        or code.endswith("_required")
         or code.startswith("strategy_") and code.endswith("_missing")
     ):
         return CliStateError(message, error_code=code)

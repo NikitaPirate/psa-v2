@@ -50,7 +50,7 @@ def _base_strategy_spec() -> dict:
     }
 
 
-def _create_strategy_pack_payload() -> dict:
+def _upsert_strategy_state_payload() -> dict:
     return {
         "thesis": {
             "id": "thesis-1",
@@ -92,11 +92,11 @@ def test_show_runtime_returns_success_envelope(tmp_path: Path) -> None:
     assert envelope["result"]["runtime"]["command"] == "psa"
 
 
-def test_create_strategy_pack_and_show_summary(tmp_path: Path) -> None:
+def test_upsert_strategy_state_and_show_summary(tmp_path: Path) -> None:
     db = tmp_path / "memory.json"
-    payload = json.dumps(_create_strategy_pack_payload())
+    payload = json.dumps(_upsert_strategy_state_payload())
 
-    created = _run_cli(["--db-path", str(db), "create", "strategy-pack", "--json", payload])
+    created = _run_cli(["--db-path", str(db), "upsert", "strategy-state", "--json", payload])
     assert created.returncode == 0, created.stderr
     created_data = _decode_envelope(created.stdout)
     assert created_data["ok"] is True
@@ -111,20 +111,16 @@ def test_create_strategy_pack_and_show_summary(tmp_path: Path) -> None:
     assert memory["active_strategy"]["id"] == "strategy-1"
 
 
-def test_update_strategy_pack_adds_version_and_keeps_history(tmp_path: Path) -> None:
+def test_upsert_strategy_state_revision_adds_version_and_keeps_history(tmp_path: Path) -> None:
     db = tmp_path / "memory.json"
-    create_payload = json.dumps(_create_strategy_pack_payload())
-    created = _run_cli(["--db-path", str(db), "create", "strategy-pack", "--json", create_payload])
+    create_payload = json.dumps(_upsert_strategy_state_payload())
+    created = _run_cli(["--db-path", str(db), "upsert", "strategy-state", "--json", create_payload])
     assert created.returncode == 0, created.stderr
 
     updated_spec = _base_strategy_spec()
     updated_spec["time_segments"][0]["k_end"] = 2.0
 
     update_payload = {
-        "strategy": {
-            "id": "strategy-1",
-            "notes": "revision",
-        },
         "version": {
             "id": "version-2",
             "strategy_id": "strategy-1",
@@ -140,8 +136,8 @@ def test_update_strategy_pack_adds_version_and_keeps_history(tmp_path: Path) -> 
         [
             "--db-path",
             str(db),
-            "update",
-            "strategy-pack",
+            "upsert",
+            "strategy-state",
             "--json",
             json.dumps(update_payload),
         ]
@@ -168,19 +164,36 @@ def test_update_strategy_pack_adds_version_and_keeps_history(tmp_path: Path) -> 
     assert version_ids == {"version-1", "version-2"}
 
 
-def test_evaluate_point_inline_and_version_mode(tmp_path: Path) -> None:
+def test_evaluate_point_uses_latest_by_default_and_version_override(tmp_path: Path) -> None:
     db = tmp_path / "memory.json"
     created = _run_cli(
         [
             "--db-path",
             str(db),
-            "create",
-            "strategy-pack",
+            "upsert",
+            "strategy-state",
             "--json",
-            json.dumps(_create_strategy_pack_payload()),
+            json.dumps(_upsert_strategy_state_payload()),
         ]
     )
     assert created.returncode == 0, created.stderr
+
+    latest = _run_cli(
+        [
+            "--db-path",
+            str(db),
+            "evaluate",
+            "point",
+            "--timestamp",
+            "2026-03-01T00:00:00Z",
+            "--price",
+            "42000",
+        ]
+    )
+    assert latest.returncode == 0, latest.stderr
+    latest_data = _decode_envelope(latest.stdout)
+    assert latest_data["result"]["strategy_source"] == "latest:strategy-1:version-1"
+    assert "row" in latest_data["result"]["data"]
 
     by_version = _run_cli(
         [
@@ -199,46 +212,18 @@ def test_evaluate_point_inline_and_version_mode(tmp_path: Path) -> None:
     assert by_version.returncode == 0, by_version.stderr
     by_version_data = _decode_envelope(by_version.stdout)
     assert by_version_data["result"]["strategy_source"] == "version:version-1"
-    assert "row" in by_version_data["result"]["data"]
-
-    inline = _run_cli(
-        [
-            "evaluate",
-            "point",
-            "--market-mode",
-            "bear",
-            "--price-segment",
-            "50000:60000:10",
-            "--price-segment",
-            "40000:50000:30",
-            "--price-segment",
-            "30000:40000:40",
-            "--price-segment",
-            "25000:30000:20",
-            "--time-segment",
-            "2026-01-01T00:00:00Z:2026-06-01T00:00:00Z:1.0:1.8",
-            "--timestamp",
-            "2026-03-01T00:00:00Z",
-            "--price",
-            "42000",
-        ]
-    )
-    assert inline.returncode == 0, inline.stderr
-    inline_data = _decode_envelope(inline.stdout)
-    assert inline_data["result"]["strategy_source"] == "inline"
-    assert "row" in inline_data["result"]["data"]
 
 
-def test_evaluate_rows_and_ranges_by_version(tmp_path: Path) -> None:
+def test_evaluate_rows_and_ranges_with_latest_strategy(tmp_path: Path) -> None:
     db = tmp_path / "memory.json"
     created = _run_cli(
         [
             "--db-path",
             str(db),
-            "create",
-            "strategy-pack",
+            "upsert",
+            "strategy-state",
             "--json",
-            json.dumps(_create_strategy_pack_payload()),
+            json.dumps(_upsert_strategy_state_payload()),
         ]
     )
     assert created.returncode == 0, created.stderr
@@ -249,8 +234,6 @@ def test_evaluate_rows_and_ranges_by_version(tmp_path: Path) -> None:
             str(db),
             "evaluate",
             "rows",
-            "--version-id",
-            "version-1",
             "--row",
             "2026-02-01T00:00:00Z:47000",
             "--row",
@@ -259,6 +242,7 @@ def test_evaluate_rows_and_ranges_by_version(tmp_path: Path) -> None:
     )
     assert rows.returncode == 0, rows.stderr
     rows_data = _decode_envelope(rows.stdout)
+    assert rows_data["result"]["strategy_source"] == "latest:strategy-1:version-1"
     assert len(rows_data["result"]["data"]["rows"]) == 2
 
     ranges = _run_cli(
@@ -267,8 +251,6 @@ def test_evaluate_rows_and_ranges_by_version(tmp_path: Path) -> None:
             str(db),
             "evaluate",
             "ranges",
-            "--version-id",
-            "version-1",
             "--price-start",
             "60000",
             "--price-end",
@@ -286,12 +268,13 @@ def test_evaluate_rows_and_ranges_by_version(tmp_path: Path) -> None:
     )
     assert ranges.returncode == 0, ranges.stderr
     ranges_data = _decode_envelope(ranges.stdout)
+    assert ranges_data["result"]["strategy_source"] == "latest:strategy-1:version-1"
     assert len(ranges_data["result"]["data"]["rows"]) > 0
 
 
 def test_state_error_returns_code_5_and_error_envelope(tmp_path: Path) -> None:
     db = tmp_path / "memory.json"
-    completed = _run_cli(["--db-path", str(db), "show", "strategy", "--id", "missing"]) 
+    completed = _run_cli(["--db-path", str(db), "show", "strategy", "--id", "missing"])
     assert completed.returncode == 5
 
     envelope = _decode_envelope(completed.stderr)
@@ -300,7 +283,7 @@ def test_state_error_returns_code_5_and_error_envelope(tmp_path: Path) -> None:
 
 
 def test_argument_error_returns_code_2_and_error_envelope() -> None:
-    completed = _run_cli(["evaluate", "point", "--price", "42000"]) 
+    completed = _run_cli(["evaluate", "point", "--price", "42000"])
     assert completed.returncode == 2
 
     envelope = _decode_envelope(completed.stderr)

@@ -20,8 +20,8 @@ Use the simplest available path that satisfies the task.
 - If runtime remains unavailable, report blocker and stop.
 
 ## Memory Path
-- Use CLI commands for read/create/update flows.
-- Use one logical save command for persistence (`strategy-pack` commands).
+- Use CLI commands for read/upsert/evaluate flows.
+- Use one logical save command for persistence (`upsert strategy-state`).
 - Do not depend on local helper scripts.
 
 ## Presentation Path

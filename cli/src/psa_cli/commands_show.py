@@ -11,7 +11,7 @@ def _cli_version() -> str:
     try:
         return version("psa-strategy-cli")
     except PackageNotFoundError:
-        return "0.2.0"
+        return "0.3.0"
 
 
 def execute_show(args: Any, store: MemoryStore) -> dict[str, Any]:

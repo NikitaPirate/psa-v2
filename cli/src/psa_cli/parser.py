@@ -16,7 +16,7 @@ def _cli_version() -> str:
     try:
         return version("psa-strategy-cli")
     except PackageNotFoundError:
-        return "0.2.0"
+        return "0.3.0"
 
 
 def _parse_bool(value: str) -> bool:
@@ -28,8 +28,9 @@ def _parse_bool(value: str) -> bool:
     raise argparse.ArgumentTypeError("expected boolean value")
 
 
-def _add_inline_strategy_flags(parser: argparse.ArgumentParser) -> None:
+def _add_strategy_source_flags(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--version-id")
+    parser.add_argument("--strategy-id")
     parser.add_argument("--market-mode", choices=["bear", "bull"])
     parser.add_argument(
         "--price-segment",
@@ -93,45 +94,57 @@ def build_parser() -> argparse.ArgumentParser:
     show_decisions.add_argument("--strategy-id", required=True)
     show_decisions.add_argument("--limit", type=int, default=20)
 
-    create_parser = groups.add_parser("create", help="Create entities")
-    create_sub = create_parser.add_subparsers(dest="create_command", required=True)
+    upsert_parser = groups.add_parser("upsert", help="Upsert entities")
+    upsert_sub = upsert_parser.add_subparsers(dest="upsert_command", required=True)
 
-    create_thesis = create_sub.add_parser("thesis", help="Create thesis")
-    create_thesis.add_argument("--json")
-    create_thesis.add_argument("--id")
-    create_thesis.add_argument("--title")
-    create_thesis.add_argument("--summary")
-    create_thesis.add_argument("--assumption", action="append", default=None)
-    create_thesis.add_argument("--invalidation-signal", action="append", default=None)
-    create_thesis.add_argument("--horizon")
-    create_thesis.add_argument("--status", default="active")
+    upsert_thesis = upsert_sub.add_parser("thesis", help="Upsert thesis")
+    upsert_thesis.add_argument("--json")
+    upsert_thesis.add_argument("--id")
+    upsert_thesis.add_argument("--title")
+    upsert_thesis.add_argument("--summary")
+    upsert_thesis.add_argument("--assumption", action="append", default=None)
+    upsert_thesis.add_argument("--invalidation-signal", action="append", default=None)
+    upsert_thesis.add_argument("--horizon")
+    upsert_thesis.add_argument("--status", default="active")
 
-    create_strategy = create_sub.add_parser("strategy", help="Create strategy")
-    create_strategy.add_argument("--json")
-    create_strategy.add_argument("--id")
-    create_strategy.add_argument("--name")
-    create_strategy.add_argument("--objective")
-    create_strategy.add_argument("--market-mode", choices=["bear", "bull"])
-    create_strategy.add_argument("--notes")
-    create_strategy.add_argument("--status", default="active")
+    upsert_strategy = upsert_sub.add_parser("strategy", help="Upsert strategy")
+    upsert_strategy.add_argument("--json")
+    upsert_strategy.add_argument("--id")
+    upsert_strategy.add_argument("--name")
+    upsert_strategy.add_argument("--objective")
+    upsert_strategy.add_argument("--market-mode", choices=["bear", "bull"])
+    upsert_strategy.add_argument("--notes")
+    upsert_strategy.add_argument("--status", default="active")
+    upsert_strategy.add_argument("--set-active", action="store_true")
 
-    create_version = create_sub.add_parser("version", help="Create strategy version")
-    create_version.add_argument("--json")
-    create_version.add_argument("--id")
-    create_version.add_argument("--strategy-id")
-    create_version.add_argument("--label")
-    create_version.add_argument("--rationale")
-    create_version.add_argument("--created-by", default="agent")
-    create_version.add_argument("--tag", action="append", default=None)
-    create_version.add_argument("--market-mode", choices=["bear", "bull"])
-    create_version.add_argument(
+    upsert_profile = upsert_sub.add_parser("profile", help="Upsert user profile")
+    upsert_profile.add_argument("--user-id")
+    upsert_profile.add_argument("--language")
+    upsert_profile.add_argument("--philosophy")
+    upsert_profile.add_argument("--constraint", action="append", default=None)
+    upsert_profile.add_argument("--active-strategy-id")
+    upsert_profile.add_argument("--runtime-mode", choices=["auto", "tool"])
+    upsert_profile.add_argument("--runtime-package")
+    upsert_profile.add_argument("--runtime-command")
+    upsert_profile.add_argument("--runtime-resolved", type=_parse_bool)
+
+    upsert_version = upsert_sub.add_parser("version", help="Upsert strategy version")
+    upsert_version.add_argument("--json")
+    upsert_version.add_argument("--id")
+    upsert_version.add_argument("--strategy-id")
+    upsert_version.add_argument("--label")
+    upsert_version.add_argument("--rationale")
+    upsert_version.add_argument("--created-by", default="agent")
+    upsert_version.add_argument("--tag", action="append", default=None)
+    upsert_version.add_argument("--market-mode", choices=["bear", "bull"])
+    upsert_version.add_argument(
         "--price-segment",
         dest="price_segments",
         action="append",
         type=parse_price_segment,
         default=[],
     )
-    create_version.add_argument(
+    upsert_version.add_argument(
         "--time-segment",
         dest="time_segments",
         action="append",
@@ -139,80 +152,48 @@ def build_parser() -> argparse.ArgumentParser:
         default=[],
     )
 
-    create_link = create_sub.add_parser("link", help="Link strategy to thesis")
-    create_link.add_argument("--strategy-id", required=True)
-    create_link.add_argument("--thesis-id", required=True)
-    create_link.add_argument("--rationale", default="")
+    upsert_link = upsert_sub.add_parser("link", help="Upsert strategy-thesis link")
+    upsert_link.add_argument("--strategy-id", required=True)
+    upsert_link.add_argument("--thesis-id", required=True)
+    upsert_link.add_argument("--rationale", default="")
 
-    create_checkin = create_sub.add_parser("checkin", help="Create checkin")
-    create_checkin.add_argument("--id")
-    create_checkin.add_argument("--strategy-id", required=True)
-    create_checkin.add_argument("--timestamp")
-    create_checkin.add_argument("--price", type=float)
-    create_checkin.add_argument("--context")
-    create_checkin.add_argument("--evaluation-json")
-    create_checkin.add_argument("--note")
+    upsert_checkin = upsert_sub.add_parser("checkin", help="Upsert checkin")
+    upsert_checkin.add_argument("--id")
+    upsert_checkin.add_argument("--strategy-id", required=True)
+    upsert_checkin.add_argument("--timestamp")
+    upsert_checkin.add_argument("--price", type=float)
+    upsert_checkin.add_argument("--context")
+    upsert_checkin.add_argument("--evaluation-json")
+    upsert_checkin.add_argument("--note")
 
-    create_decision = create_sub.add_parser("decision", help="Create decision")
-    create_decision.add_argument("--id")
-    create_decision.add_argument("--strategy-id", required=True)
-    create_decision.add_argument("--timestamp")
-    create_decision.add_argument("--action-summary", required=True)
-    create_decision.add_argument("--rationale")
-    create_decision.add_argument("--linked-checkin-id")
+    upsert_decision = upsert_sub.add_parser("decision", help="Upsert decision")
+    upsert_decision.add_argument("--id")
+    upsert_decision.add_argument("--strategy-id", required=True)
+    upsert_decision.add_argument("--timestamp")
+    upsert_decision.add_argument("--action-summary", required=True)
+    upsert_decision.add_argument("--rationale")
+    upsert_decision.add_argument("--linked-checkin-id")
 
-    create_pack = create_sub.add_parser("strategy-pack", help="Atomic first-save pack")
-    create_pack.add_argument("--json", required=True)
-
-    update_parser = groups.add_parser("update", help="Update entities")
-    update_sub = update_parser.add_subparsers(dest="update_command", required=True)
-
-    update_thesis = update_sub.add_parser("thesis", help="Update thesis")
-    update_thesis.add_argument("--id", required=True)
-    update_thesis.add_argument("--title")
-    update_thesis.add_argument("--summary")
-    update_thesis.add_argument("--assumption", action="append", default=None)
-    update_thesis.add_argument("--invalidation-signal", action="append", default=None)
-    update_thesis.add_argument("--horizon")
-    update_thesis.add_argument("--status")
-
-    update_strategy = update_sub.add_parser("strategy", help="Update strategy")
-    update_strategy.add_argument("--id", required=True)
-    update_strategy.add_argument("--name")
-    update_strategy.add_argument("--objective")
-    update_strategy.add_argument("--market-mode", choices=["bear", "bull"])
-    update_strategy.add_argument("--notes")
-    update_strategy.add_argument("--status")
-    update_strategy.add_argument("--set-active", action="store_true")
-
-    update_profile = update_sub.add_parser("profile", help="Update user profile")
-    update_profile.add_argument("--user-id")
-    update_profile.add_argument("--language")
-    update_profile.add_argument("--philosophy")
-    update_profile.add_argument("--constraint", action="append", default=None)
-    update_profile.add_argument("--active-strategy-id")
-    update_profile.add_argument("--runtime-mode", choices=["auto", "tool"])
-    update_profile.add_argument("--runtime-package")
-    update_profile.add_argument("--runtime-command")
-    update_profile.add_argument("--runtime-resolved", type=_parse_bool)
-
-    update_pack = update_sub.add_parser("strategy-pack", help="Atomic revision-save pack")
-    update_pack.add_argument("--json", required=True)
+    upsert_state = upsert_sub.add_parser(
+        "strategy-state",
+        help="Atomic strategy save payload",
+    )
+    upsert_state.add_argument("--json", required=True)
 
     evaluate_parser = groups.add_parser("evaluate", help="Evaluate strategies")
     evaluate_sub = evaluate_parser.add_subparsers(dest="evaluate_command", required=True)
 
     eval_point = evaluate_sub.add_parser("point", help="Evaluate point")
-    _add_inline_strategy_flags(eval_point)
+    _add_strategy_source_flags(eval_point)
     eval_point.add_argument("--timestamp", required=True)
     eval_point.add_argument("--price", required=True, type=float)
 
     eval_rows = evaluate_sub.add_parser("rows", help="Evaluate rows")
-    _add_inline_strategy_flags(eval_rows)
+    _add_strategy_source_flags(eval_rows)
     eval_rows.add_argument("--row", dest="rows", action="append", type=parse_row, default=[])
 
     eval_ranges = evaluate_sub.add_parser("ranges", help="Evaluate generated ranges")
-    _add_inline_strategy_flags(eval_ranges)
+    _add_strategy_source_flags(eval_ranges)
     eval_ranges.add_argument("--price-start", required=True, type=float)
     eval_ranges.add_argument("--price-end", required=True, type=float)
     eval_ranges.add_argument("--price-steps", required=True, type=int)

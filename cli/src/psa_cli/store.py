@@ -649,6 +649,48 @@ class MemoryStore:
             raise StoreError(f"strategy_spec_missing: {version_id}")
         return spec
 
+    def get_latest_strategy_spec(
+        self,
+        *,
+        strategy_id: str | None = None,
+    ) -> tuple[dict[str, Any], str, str]:
+        store = self.read(view="full", create_if_missing=False)
+        strategies = store.get("strategies", {})
+        if not isinstance(strategies, dict):
+            raise StoreError("invalid_store_shape: strategies must be object")
+
+        resolved_strategy_id = strategy_id
+        if resolved_strategy_id is None:
+            active_strategy_id = store.get("user_profile", {}).get("active_strategy_id")
+            if isinstance(active_strategy_id, str) and active_strategy_id:
+                resolved_strategy_id = active_strategy_id
+            else:
+                strategy_ids = [sid for sid, item in strategies.items() if isinstance(item, dict)]
+                if len(strategy_ids) == 1:
+                    resolved_strategy_id = strategy_ids[0]
+                elif len(strategy_ids) == 0:
+                    raise StoreError("strategy_not_found: no_strategies")
+                else:
+                    raise StoreError("active_strategy_required: multiple_strategies_present")
+
+        strategy = strategies.get(resolved_strategy_id)
+        if not isinstance(strategy, dict):
+            raise StoreError(f"strategy_not_found: {resolved_strategy_id}")
+
+        latest_version_id = strategy.get("latest_version_id")
+        if not isinstance(latest_version_id, str) or not latest_version_id:
+            raise StoreError(f"latest_version_missing: {resolved_strategy_id}")
+
+        version = store.get("strategy_versions", {}).get(latest_version_id)
+        if not isinstance(version, dict):
+            raise StoreError(f"version_not_found: {latest_version_id}")
+
+        spec = version.get("strategy_spec")
+        if not isinstance(spec, dict):
+            raise StoreError(f"strategy_spec_missing: {latest_version_id}")
+
+        return spec, str(resolved_strategy_id), latest_version_id
+
     def get_full_store(self, *, create_if_missing: bool = False) -> dict[str, Any]:
         return self.read(view="full", create_if_missing=create_if_missing)
 

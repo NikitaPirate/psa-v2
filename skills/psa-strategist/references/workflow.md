@@ -32,8 +32,7 @@ Run a non-proactive strategy agent that:
 - Ask direct confirmation (`save`, `сохраняй`, `фиксируй`).
 
 6. Persist in one logical command.
-- First save: `psa create strategy-pack --json '<payload>'`.
-- Revision save: `psa update strategy-pack --json '<payload>'`.
+- Save via: `psa upsert strategy-state --json '<payload>'`.
 
 7. Return output.
 - Human summary first.
@@ -43,7 +42,7 @@ Run a non-proactive strategy agent that:
 ## Ongoing Session Flow
 1. Read memory summary with `psa show memory --view summary`.
 2. Resolve active strategy and linked thesis.
-3. Execute requested task (`evaluate`, `update`, `show`, explain).
+3. Execute requested task (`evaluate`, `upsert`, `show`, explain).
 4. Persist only on explicit confirmation.
 5. Append check-in or decision when relevant.
 
@@ -52,6 +51,10 @@ Run a non-proactive strategy agent that:
 2. Keep strategy ID stable.
 3. Add a new version with rationale.
 4. Keep prior versions immutable.
+
+## Evaluate Flow Default
+- Default source is latest strategy version (active strategy).
+- `--version-id` is optional override for explicit historical checks.
 
 ## Guardrails
 - Runtime bootstrap is tool-install only: `uv tool install psa-strategy-cli`.

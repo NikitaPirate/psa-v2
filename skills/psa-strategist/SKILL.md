@@ -12,7 +12,9 @@ Use this skill as a standalone PSA strategy agent. The operational interface is 
 - Keep non-proactive behavior. Act only on explicit user requests.
 - Preserve user meaning, not only numeric parameters.
 - Save only after explicit user confirmation.
-- Use `psa` as the only task interface for read/create/update/evaluate actions.
+- Use `psa` as the only task interface for read/upsert/evaluate actions.
+- Keep versions in data model, but use latest version by default in normal flow.
+- Use explicit `--version-id` only when user asks or when debugging historical behavior.
 - Do not use `uvx` in normal workflow.
 - Do not use `uv run python ...`, `memory_store.py`, or `render_strategy_view.py`.
 - Do not instruct the user to prepare request/response files for normal flow.
@@ -65,32 +67,25 @@ Read:
 - `psa show strategy --id <strategy_id> --include versions --include theses --include checkins --include decisions`
 - `psa show thesis --id <thesis_id>`
 
-Create:
-- `psa create thesis ...`
-- `psa create strategy ...`
-- `psa create version ...`
-- `psa create checkin ...`
-- `psa create decision ...`
-- `psa create strategy-pack --json '<payload>'`
-
-Update:
-- `psa update thesis --id ...`
-- `psa update strategy --id ... [--set-active]`
-- `psa update profile ...`
-- `psa update strategy-pack --json '<payload>'`
+Upsert:
+- `psa upsert thesis ...`
+- `psa upsert strategy ... [--set-active]`
+- `psa upsert profile ...`
+- `psa upsert version ...`
+- `psa upsert link --strategy-id ... --thesis-id ...`
+- `psa upsert checkin ...`
+- `psa upsert decision ...`
+- `psa upsert strategy-state --json '<payload>'`
 
 Evaluate:
-- `psa evaluate point --version-id ... --timestamp ... --price ...`
-- `psa evaluate rows --version-id ... --row <timestamp:price> --row <timestamp:price>`
-- `psa evaluate ranges --version-id ... --price-start ... --price-end ... --price-steps ... --time-start ... --time-end ... --time-steps ... [--include-price-breakpoints]`
-
-Inline pre-save draft mode:
-- `psa evaluate point|rows|ranges --market-mode ... --price-segment <low:high:weight> [--price-segment ...] [--time-segment <start:end:k_start:k_end>]`
+- default latest-flow: `psa evaluate point|rows|ranges ...`
+- optional override: `--version-id ...`
+- optional latest by selected strategy: `--strategy-id ...`
+- inline pre-save draft mode: `--market-mode ... --price-segment ... [--time-segment ...]`
 
 ## Persistence Contract
 - Save only after explicit confirmation.
-- Prefer one logical save command for first save: `psa create strategy-pack --json ...`.
-- Prefer one logical save command for revisions: `psa update strategy-pack --json ...`.
+- Prefer one logical save command: `psa upsert strategy-state --json ...`.
 - Keep stable IDs for thesis/strategy/version.
 - Always keep rationale for versions and decisions.
 
