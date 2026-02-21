@@ -26,13 +26,9 @@ def _parse_iso_datetime(value: str, *, field_name: str) -> datetime:
     try:
         parsed = datetime.fromisoformat(normalized)
     except ValueError as exc:
-        raise CliValidationError(
-            f"field '{field_name}' must be RFC3339 date-time"
-        ) from exc
+        raise CliValidationError(f"field '{field_name}' must be RFC3339 date-time") from exc
     if parsed.tzinfo is None or parsed.utcoffset() is None:
-        raise CliValidationError(
-            f"field '{field_name}' must include timezone offset"
-        )
+        raise CliValidationError(f"field '{field_name}' must include timezone offset")
     return parsed
 
 
@@ -44,9 +40,7 @@ def _ensure_mapping(value: Any, *, name: str) -> Mapping[str, Any]:
 
 def _validate_strategy_id(strategy_id: str) -> str:
     if not STRATEGY_ID_RE.match(strategy_id):
-        raise CliValidationError(
-            "strategy_id must match ^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"
-        )
+        raise CliValidationError("strategy_id must match ^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
     return strategy_id
 
 

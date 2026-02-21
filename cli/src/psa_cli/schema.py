@@ -114,9 +114,7 @@ def load_schema(schema_file: str) -> dict[str, Any]:
                 ) from exc
 
     checked_locations = ", ".join(checked)
-    raise CliValidationError(
-        f"schema '{schema_file}' not found (checked: {checked_locations})"
-    )
+    raise CliValidationError(f"schema '{schema_file}' not found (checked: {checked_locations})")
 
 
 def validate_request(command: str, payload: Any) -> None:

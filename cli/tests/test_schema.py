@@ -35,9 +35,7 @@ def _write_schema(directory: Path, schema_file: str, *, marker: str) -> None:
     (directory / schema_file).write_text(json.dumps(schema), encoding="utf-8")
 
 
-def test_load_schema_prioritizes_env_over_packaged_and_repo(
-    monkeypatch, tmp_path: Path
-) -> None:
+def test_load_schema_prioritizes_env_over_packaged_and_repo(monkeypatch, tmp_path: Path) -> None:
     schema_module.load_schema.cache_clear()
     schema_file = "evaluate_point.request.v1.json"
 
@@ -85,9 +83,7 @@ def test_load_schema_uses_packaged_before_repo(monkeypatch, tmp_path: Path) -> N
     assert loaded["title"] == "packaged"
 
 
-def test_load_schema_falls_back_to_repo_when_packaged_missing(
-    monkeypatch, tmp_path: Path
-) -> None:
+def test_load_schema_falls_back_to_repo_when_packaged_missing(monkeypatch, tmp_path: Path) -> None:
     schema_module.load_schema.cache_clear()
     schema_file = "evaluate_point.request.v1.json"
 
