@@ -72,8 +72,8 @@ For tests/debug you can override path with hidden flag `--db-path`.
 - `psa upsert profile ...`
 - `psa upsert version ...`
 - `psa upsert link --strategy-id ... --thesis-id ...`
-- `psa upsert checkin ...`
-- `psa upsert decision ...`
+- `psa upsert checkin ...` (idempotent by `--id`)
+- `psa upsert decision ...` (idempotent by `--id`)
 - `psa upsert strategy-state --json '<payload>'`
 
 ### Evaluate
@@ -87,6 +87,9 @@ For tests/debug you can override path with hidden flag `--db-path`.
   - `--strategy-id <id>` (use latest version of selected strategy)
 - inline draft mode:
   - `psa evaluate point|rows|ranges --market-mode ... --price-segment <low:high:weight> [--price-segment ...] [--time-segment <start:end:k_start:k_end>]`
+- source flags are mutually exclusive:
+  - `--version-id` cannot be combined with `--strategy-id` or inline flags
+  - `--strategy-id` cannot be combined with inline flags
 
 ## Examples
 

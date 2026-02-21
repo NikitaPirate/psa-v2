@@ -126,7 +126,7 @@ def apply_strategy_state(store: MemoryStore, payload: dict[str, Any]) -> dict[st
             checkin_result = apply_operation(
                 state,
                 {
-                    "op": "add_checkin",
+                    "op": "upsert_checkin",
                     "checkin": checkin_payload,
                 },
             )
@@ -138,7 +138,7 @@ def apply_strategy_state(store: MemoryStore, payload: dict[str, Any]) -> dict[st
             decision_result = apply_operation(
                 state,
                 {
-                    "op": "add_decision",
+                    "op": "upsert_decision",
                     "decision": decision_payload,
                 },
             )
@@ -191,17 +191,27 @@ def execute_upsert(args: Any, store: MemoryStore) -> dict[str, Any]:
                 }
             )
 
-        operations = [{"op": "upsert_strategy", "strategy": payload}]
         if args.set_active:
-            strategy_id = payload.get("id")
-            if not isinstance(strategy_id, str) or not strategy_id:
-                raise CliValidationError(
-                    "--set-active requires strategy id (in --id or --json)",
-                    error_code="missing_strategy_id",
+            def _mutator(state: dict[str, Any]) -> dict[str, Any]:
+                strategy_result = apply_operation(
+                    state,
+                    {"op": "upsert_strategy", "strategy": payload},
                 )
-            operations.append({"op": "set_active_strategy", "strategy_id": strategy_id})
+                strategy_id = strategy_result.get("strategy_id")
+                if not isinstance(strategy_id, str) or not strategy_id:
+                    raise StoreError("invalid_strategy: strategy_id was not resolved")
+                set_active_result = apply_operation(
+                    state,
+                    {"op": "set_active_strategy", "strategy_id": strategy_id},
+                )
+                return {
+                    "op": "batch",
+                    "results": [strategy_result, set_active_result],
+                }
 
-        tx = store.apply_batch(operations, create_if_missing=True)
+            tx = store.with_store(_mutator, create_if_missing=True)
+        else:
+            tx = store.apply({"op": "upsert_strategy", "strategy": payload}, create_if_missing=True)
         return {"command": "upsert strategy", **tx}
 
     if args.upsert_command == "profile":
@@ -289,7 +299,7 @@ def execute_upsert(args: Any, store: MemoryStore) -> dict[str, Any]:
                 "note": args.note,
             }
         )
-        tx = store.apply({"op": "add_checkin", "checkin": payload}, create_if_missing=False)
+        tx = store.apply({"op": "upsert_checkin", "checkin": payload}, create_if_missing=False)
         return {"command": "upsert checkin", **tx}
 
     if args.upsert_command == "decision":
@@ -303,7 +313,7 @@ def execute_upsert(args: Any, store: MemoryStore) -> dict[str, Any]:
                 "linked_checkin_id": args.linked_checkin_id,
             }
         )
-        tx = store.apply({"op": "add_decision", "decision": payload}, create_if_missing=False)
+        tx = store.apply({"op": "upsert_decision", "decision": payload}, create_if_missing=False)
         return {"command": "upsert decision", **tx}
 
     if args.upsert_command == "strategy-state":

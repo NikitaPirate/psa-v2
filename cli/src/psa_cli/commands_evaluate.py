@@ -50,6 +50,12 @@ def _resolve_strategy_spec(args: Any, store: MemoryStore) -> tuple[dict[str, Any
             error_code="conflicting_strategy_source",
         )
 
+    if args.strategy_id and inline_spec:
+        raise CliValidationError(
+            "cannot combine --strategy-id with inline strategy flags",
+            error_code="conflicting_strategy_source",
+        )
+
     if args.version_id:
         spec = store.get_strategy_spec_by_version(args.version_id)
         return spec, f"version:{args.version_id}"

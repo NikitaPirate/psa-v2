@@ -171,6 +171,13 @@ def _require_thesis(store: dict[str, Any], thesis_id: str) -> dict[str, Any]:
     return thesis
 
 
+def _find_event_index(events: list[Any], event_id: str) -> int | None:
+    for idx, item in enumerate(events):
+        if isinstance(item, dict) and item.get("id") == event_id:
+            return idx
+    return None
+
+
 def _validate_strategy_spec(spec: Any) -> dict[str, Any]:
     if not isinstance(spec, dict):
         raise StoreError("invalid_strategy_spec: must be object")
@@ -344,7 +351,7 @@ def _op_set_active_strategy(store: dict[str, Any], payload: dict[str, Any]) -> d
     return {"op": "set_active_strategy", "strategy_id": strategy_id}
 
 
-def _op_add_checkin(store: dict[str, Any], payload: dict[str, Any]) -> dict[str, Any]:
+def _op_upsert_checkin(store: dict[str, Any], payload: dict[str, Any]) -> dict[str, Any]:
     now = _utc_now()
     checkin = _require_object(payload, "checkin")
     strategy_id = checkin.get("strategy_id")
@@ -352,24 +359,39 @@ def _op_add_checkin(store: dict[str, Any], payload: dict[str, Any]) -> dict[str,
         raise StoreError("invalid_checkin: strategy_id is required")
 
     _require_strategy(store, strategy_id)
-    checkin_id = checkin.get("id") or _new_id("checkin")
+    checkin_raw_id = checkin.get("id")
+    checkin_id = (
+        checkin_raw_id if isinstance(checkin_raw_id, str) and checkin_raw_id else _new_id("checkin")
+    )
+    existing_index = _find_event_index(store["checkins"], checkin_id)
+    existing = (
+        store["checkins"][existing_index]
+        if existing_index is not None and isinstance(store["checkins"][existing_index], dict)
+        else {}
+    )
+    if existing and existing.get("strategy_id") != strategy_id:
+        raise StoreError(f"checkin_conflict: {checkin_id}")
+
     record = {
         "id": checkin_id,
         "strategy_id": strategy_id,
-        "timestamp": checkin.get("timestamp", now),
-        "price": checkin.get("price"),
-        "context": checkin.get("context", ""),
-        "evaluation": checkin.get("evaluation", {}),
-        "note": checkin.get("note", ""),
-        "created_at": now,
+        "timestamp": checkin.get("timestamp", existing.get("timestamp", now)),
+        "price": checkin.get("price", existing.get("price")),
+        "context": checkin.get("context", existing.get("context", "")),
+        "evaluation": checkin.get("evaluation", existing.get("evaluation", {})),
+        "note": checkin.get("note", existing.get("note", "")),
+        "created_at": existing.get("created_at", now),
     }
 
-    store["checkins"].append(record)
+    if existing_index is None:
+        store["checkins"].append(record)
+    else:
+        store["checkins"][existing_index] = record
     store["updated_at"] = now
-    return {"op": "add_checkin", "checkin_id": checkin_id, "strategy_id": strategy_id}
+    return {"op": "upsert_checkin", "checkin_id": checkin_id, "strategy_id": strategy_id}
 
 
-def _op_add_decision(store: dict[str, Any], payload: dict[str, Any]) -> dict[str, Any]:
+def _op_upsert_decision(store: dict[str, Any], payload: dict[str, Any]) -> dict[str, Any]:
     now = _utc_now()
     decision = _require_object(payload, "decision")
     strategy_id = decision.get("strategy_id")
@@ -377,24 +399,44 @@ def _op_add_decision(store: dict[str, Any], payload: dict[str, Any]) -> dict[str
         raise StoreError("invalid_decision: strategy_id is required")
 
     _require_strategy(store, strategy_id)
-    action_summary = decision.get("action_summary")
+    decision_raw_id = decision.get("id")
+    decision_id = (
+        decision_raw_id
+        if isinstance(decision_raw_id, str) and decision_raw_id
+        else _new_id("decision")
+    )
+    existing_index = _find_event_index(store["decision_log"], decision_id)
+    existing = (
+        store["decision_log"][existing_index]
+        if existing_index is not None and isinstance(store["decision_log"][existing_index], dict)
+        else {}
+    )
+    if existing and existing.get("strategy_id") != strategy_id:
+        raise StoreError(f"decision_conflict: {decision_id}")
+
+    action_summary = decision.get("action_summary", existing.get("action_summary"))
     if not isinstance(action_summary, str) or not action_summary.strip():
         raise StoreError("invalid_decision: action_summary is required")
 
-    decision_id = decision.get("id") or _new_id("decision")
     record = {
         "id": decision_id,
         "strategy_id": strategy_id,
-        "timestamp": decision.get("timestamp", now),
+        "timestamp": decision.get("timestamp", existing.get("timestamp", now)),
         "action_summary": action_summary,
-        "rationale": decision.get("rationale", ""),
-        "linked_checkin_id": decision.get("linked_checkin_id"),
-        "created_at": now,
+        "rationale": decision.get("rationale", existing.get("rationale", "")),
+        "linked_checkin_id": decision.get(
+            "linked_checkin_id",
+            existing.get("linked_checkin_id"),
+        ),
+        "created_at": existing.get("created_at", now),
     }
 
-    store["decision_log"].append(record)
+    if existing_index is None:
+        store["decision_log"].append(record)
+    else:
+        store["decision_log"][existing_index] = record
     store["updated_at"] = now
-    return {"op": "add_decision", "decision_id": decision_id, "strategy_id": strategy_id}
+    return {"op": "upsert_decision", "decision_id": decision_id, "strategy_id": strategy_id}
 
 
 def apply_operation(store: dict[str, Any], operation: dict[str, Any]) -> dict[str, Any]:
@@ -411,10 +453,10 @@ def apply_operation(store: dict[str, Any], operation: dict[str, Any]) -> dict[st
         return _op_link_strategy_thesis(store, operation)
     if op_name == "set_active_strategy":
         return _op_set_active_strategy(store, operation)
-    if op_name == "add_checkin":
-        return _op_add_checkin(store, operation)
-    if op_name == "add_decision":
-        return _op_add_decision(store, operation)
+    if op_name in {"upsert_checkin", "add_checkin"}:
+        return _op_upsert_checkin(store, operation)
+    if op_name in {"upsert_decision", "add_decision"}:
+        return _op_upsert_decision(store, operation)
     if op_name == "batch":
         items = operation.get("ops", operation.get("operations"))
         if not isinstance(items, list):

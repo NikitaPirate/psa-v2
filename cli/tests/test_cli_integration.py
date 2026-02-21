@@ -272,6 +272,173 @@ def test_evaluate_rows_and_ranges_with_latest_strategy(tmp_path: Path) -> None:
     assert len(ranges_data["result"]["data"]["rows"]) > 0
 
 
+def test_upsert_checkin_and_decision_are_idempotent_by_id(tmp_path: Path) -> None:
+    db = tmp_path / "memory.json"
+    created = _run_cli(
+        [
+            "--db-path",
+            str(db),
+            "upsert",
+            "strategy-state",
+            "--json",
+            json.dumps(_upsert_strategy_state_payload()),
+        ]
+    )
+    assert created.returncode == 0, created.stderr
+
+    checkin_first = _run_cli(
+        [
+            "--db-path",
+            str(db),
+            "upsert",
+            "checkin",
+            "--id",
+            "checkin-1",
+            "--strategy-id",
+            "strategy-1",
+            "--timestamp",
+            "2026-03-01T00:00:00Z",
+            "--price",
+            "42000",
+            "--note",
+            "first",
+        ]
+    )
+    assert checkin_first.returncode == 0, checkin_first.stderr
+    checkin_retry = _run_cli(
+        [
+            "--db-path",
+            str(db),
+            "upsert",
+            "checkin",
+            "--id",
+            "checkin-1",
+            "--strategy-id",
+            "strategy-1",
+            "--note",
+            "retry-note",
+        ]
+    )
+    assert checkin_retry.returncode == 0, checkin_retry.stderr
+
+    checkins = _run_cli(["--db-path", str(db), "show", "checkins", "--strategy-id", "strategy-1"])
+    assert checkins.returncode == 0, checkins.stderr
+    checkins_data = _decode_envelope(checkins.stdout)
+    assert checkins_data["result"]["count"] == 1
+    assert checkins_data["result"]["checkins"][0]["id"] == "checkin-1"
+    assert checkins_data["result"]["checkins"][0]["note"] == "retry-note"
+
+    decision_first = _run_cli(
+        [
+            "--db-path",
+            str(db),
+            "upsert",
+            "decision",
+            "--id",
+            "decision-1",
+            "--strategy-id",
+            "strategy-1",
+            "--timestamp",
+            "2026-03-01T00:00:00Z",
+            "--action-summary",
+            "hold",
+            "--rationale",
+            "initial",
+        ]
+    )
+    assert decision_first.returncode == 0, decision_first.stderr
+    decision_retry = _run_cli(
+        [
+            "--db-path",
+            str(db),
+            "upsert",
+            "decision",
+            "--id",
+            "decision-1",
+            "--strategy-id",
+            "strategy-1",
+            "--action-summary",
+            "hold",
+            "--rationale",
+            "retry-update",
+        ]
+    )
+    assert decision_retry.returncode == 0, decision_retry.stderr
+
+    decisions = _run_cli(["--db-path", str(db), "show", "decisions", "--strategy-id", "strategy-1"])
+    assert decisions.returncode == 0, decisions.stderr
+    decisions_data = _decode_envelope(decisions.stdout)
+    assert decisions_data["result"]["count"] == 1
+    assert decisions_data["result"]["decisions"][0]["id"] == "decision-1"
+    assert decisions_data["result"]["decisions"][0]["rationale"] == "retry-update"
+
+
+def test_evaluate_rejects_strategy_id_with_inline_flags(tmp_path: Path) -> None:
+    db = tmp_path / "memory.json"
+    created = _run_cli(
+        [
+            "--db-path",
+            str(db),
+            "upsert",
+            "strategy-state",
+            "--json",
+            json.dumps(_upsert_strategy_state_payload()),
+        ]
+    )
+    assert created.returncode == 0, created.stderr
+
+    completed = _run_cli(
+        [
+            "--db-path",
+            str(db),
+            "evaluate",
+            "point",
+            "--strategy-id",
+            "strategy-1",
+            "--market-mode",
+            "bear",
+            "--price-segment",
+            "40000:50000:1",
+            "--timestamp",
+            "2026-03-01T00:00:00Z",
+            "--price",
+            "42000",
+        ]
+    )
+    assert completed.returncode == 4
+    envelope = _decode_envelope(completed.stderr)
+    assert envelope["ok"] is False
+    assert envelope["error"]["code"] == "conflicting_strategy_source"
+
+
+def test_upsert_strategy_set_active_without_explicit_id(tmp_path: Path) -> None:
+    db = tmp_path / "memory.json"
+    completed = _run_cli(
+        [
+            "--db-path",
+            str(db),
+            "upsert",
+            "strategy",
+            "--name",
+            "Generated strategy",
+            "--objective",
+            "Accumulate",
+            "--market-mode",
+            "bear",
+            "--set-active",
+        ]
+    )
+    assert completed.returncode == 0, completed.stderr
+    created = _decode_envelope(completed.stdout)
+    strategy_id = created["result"]["result"]["results"][0]["strategy_id"]
+    assert isinstance(strategy_id, str) and strategy_id
+
+    summary = _run_cli(["--db-path", str(db), "show", "memory", "--view", "summary"])
+    assert summary.returncode == 0, summary.stderr
+    summary_data = _decode_envelope(summary.stdout)
+    assert summary_data["result"]["memory"]["active_strategy"]["id"] == strategy_id
+
+
 def test_state_error_returns_code_5_and_error_envelope(tmp_path: Path) -> None:
     db = tmp_path / "memory.json"
     completed = _run_cli(["--db-path", str(db), "show", "strategy", "--id", "missing"])
