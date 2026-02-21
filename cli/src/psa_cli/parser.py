@@ -2,12 +2,13 @@ from __future__ import annotations
 
 import argparse
 from importlib.metadata import PackageNotFoundError, version
+from typing import Any, NoReturn
 
 from psa_cli.errors import CliArgumentError
 
 
 class CliArgumentParser(argparse.ArgumentParser):
-    def error(self, message: str) -> None:
+    def error(self, message: str) -> NoReturn:
         raise CliArgumentError(message)
 
 
@@ -28,7 +29,7 @@ def _add_required_json_flag(parser: argparse.ArgumentParser) -> None:
     )
 
 
-def _add_evaluate_commands(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
+def _add_evaluate_commands(subparsers: Any) -> None:
     evaluate_help = {
         "evaluate-point": "Evaluate one observation point",
         "evaluate-rows": "Evaluate an array of observation rows",
@@ -48,7 +49,7 @@ def _add_evaluate_commands(subparsers: argparse._SubParsersAction[argparse.Argum
         subparser.add_argument("--pretty", action="store_true", help="Pretty-print JSON output")
 
 
-def _add_strategy_commands(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
+def _add_strategy_commands(subparsers: Any) -> None:
     strategy_parser = subparsers.add_parser("strategy", help="Strategy storage operations")
     strategy_subparsers = strategy_parser.add_subparsers(dest="strategy_command", required=True)
 
@@ -73,7 +74,7 @@ def _add_strategy_commands(subparsers: argparse._SubParsersAction[argparse.Argum
     _add_required_json_flag(exists)
 
 
-def _add_log_commands(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
+def _add_log_commands(subparsers: Any) -> None:
     log_parser = subparsers.add_parser("log", help="Log storage operations")
     log_subparsers = log_parser.add_subparsers(dest="log_command", required=True)
 
