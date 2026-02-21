@@ -248,3 +248,35 @@ def test_strategy_upsert_directory_conflict_is_storage_error(tmp_path: Path) -> 
     )
     assert upsert.returncode == 4
     _assert_error_payload(upsert.stderr, code="storage_error")
+
+
+def test_strategy_list_root_conflict_is_storage_error(tmp_path: Path) -> None:
+    psa_dir = tmp_path / ".psa"
+    psa_dir.mkdir(parents=True, exist_ok=True)
+    (psa_dir / "strategies").write_text("not-a-directory", encoding="utf-8")
+
+    listed = _run_cli(["strategy", "list", "--json"], cwd=tmp_path)
+    assert listed.returncode == 4
+    _assert_error_payload(listed.stderr, code="storage_error")
+
+
+def test_log_list_invalid_stored_ts_is_storage_corrupted(tmp_path: Path) -> None:
+    created = _run_cli(
+        ["strategy", "upsert", "--strategy-id", "main", "--input", "-", "--json"],
+        cwd=tmp_path,
+        input_text=json.dumps(_strategy_payload()),
+    )
+    assert created.returncode == 0, created.stderr
+
+    log_path = tmp_path / ".psa" / "strategies" / "main" / "log.ndjson"
+    log_path.write_text(
+        '{"log_id":"bad","strategy_id":"main","ts":"2026-01-01T00:00:00","payload":{}}\n',
+        encoding="utf-8",
+    )
+
+    listed = _run_cli(
+        ["log", "list", "--strategy-id", "main", "--json"],
+        cwd=tmp_path,
+    )
+    assert listed.returncode == 4
+    _assert_error_payload(listed.stderr, code="storage_corrupted")

@@ -230,9 +230,24 @@ def list_strategies() -> list[dict[str, Any]]:
     root = _store_root()
     if not root.exists():
         return []
+    if not root.is_dir():
+        raise CliDomainError(
+            "storage_error",
+            "strategy storage root is not a directory",
+            details={"path": str(root)},
+        )
+
+    try:
+        strategy_dirs = sorted(path for path in root.iterdir() if path.is_dir())
+    except OSError as exc:
+        raise CliDomainError(
+            "storage_error",
+            f"failed to list strategy storage root {root}",
+            details={"path": str(root), "reason": exc.strerror or str(exc)},
+        ) from exc
 
     rows: list[dict[str, Any]] = []
-    for strategy_dir in sorted(path for path in root.iterdir() if path.is_dir()):
+    for strategy_dir in strategy_dirs:
         path = strategy_dir / "strategy.json"
         if not path.is_file():
             continue
@@ -345,7 +360,14 @@ def list_logs(
                 "log row must include string ts",
                 details={"strategy_id": strategy_id},
             )
-        ts_dt = _parse_iso_datetime(ts, field_name="ts")
+        try:
+            ts_dt = _parse_iso_datetime(ts, field_name="ts")
+        except CliValidationError as exc:
+            raise CliDomainError(
+                "storage_corrupted",
+                "log row has invalid ts",
+                details={"strategy_id": strategy_id, "ts": ts},
+            ) from exc
         if from_dt and ts_dt < from_dt:
             continue
         if to_dt and ts_dt > to_dt:
