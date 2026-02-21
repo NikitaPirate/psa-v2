@@ -86,6 +86,7 @@ See:
 - `core/src/psa_core/` - core package.
 - `cli/src/psa_cli/` - CLI package.
 - `api/src/psa_api/` - FastAPI package.
+- `skills/` - agent skill definitions and reference playbooks.
 - `schemas/` - versioned JSON schemas.
 - `examples/` - contract payload examples.
 - `core/tests/` - core unit, invariants, and contract tests.
