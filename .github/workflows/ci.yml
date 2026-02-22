@@ -28,6 +28,13 @@ jobs:
       - name: Pytest
         run: uv run pytest
 
+      - name: Release tooling sanity checks
+        run: |
+          CORE_VERSION="$(sed -n 's/^version = "\(.*\)"/\1/p' core/pyproject.toml | head -n 1)"
+          CLI_VERSION="$(sed -n 's/^version = "\(.*\)"/\1/p' cli/pyproject.toml | head -n 1)"
+          uv run --no-project python scripts/release/verify_component_release.py --tag "core-v${CORE_VERSION}"
+          uv run --no-project python scripts/release/verify_component_release.py --tag "cli-v${CLI_VERSION}"
+
       - name: Build psa-strategy-core
         run: uv build --package psa-strategy-core --out-dir dist/core
 

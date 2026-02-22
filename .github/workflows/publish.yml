@@ -1,4 +1,4 @@
-name: Publish
+name: Publish (Legacy Lockstep Disabled)
 
 on:
   push:
@@ -6,103 +6,11 @@ on:
       - "v*"
 
 jobs:
-  build:
+  fail-fast:
     runs-on: ubuntu-latest
-    permissions:
-      actions: write
-      contents: read
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup uv
-        uses: astral-sh/setup-uv@v7
-
-      - name: Install Python
-        run: uv python install 3.11
-
-      - name: Verify lockstep release state
-        run: uv run --no-project python scripts/release/verify_release_state.py --tag "${GITHUB_REF_NAME}"
-
-      - name: Build psa-strategy-core
-        run: uv build --package psa-strategy-core --no-sources --out-dir dist/core --clear
-
-      - name: Build psa-strategy-cli
-        run: uv build --package psa-strategy-cli --no-sources --out-dir dist/cli --clear
-
-      - name: Upload core artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: dist-core
-          path: dist/core/*
-          if-no-files-found: error
-
-      - name: Upload cli artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: dist-cli
-          path: dist/cli/*
-          if-no-files-found: error
-
-  publish-core:
-    needs: build
-    runs-on: ubuntu-latest
-    environment: pypi
-    permissions:
-      actions: read
-      id-token: write
-      contents: read
-    steps:
-      - name: Setup uv
-        uses: astral-sh/setup-uv@v7
-
-      - name: Install Python
-        run: uv python install 3.11
-
-      - name: Download core artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: dist-core
-          path: dist/core
-
-      - name: Publish psa-strategy-core
-        run: uv publish --trusted-publishing always --check-url https://pypi.org/simple dist/core/*
-
-  publish-cli:
-    needs: publish-core
-    runs-on: ubuntu-latest
-    environment: pypi
-    permissions:
-      actions: read
-      id-token: write
-      contents: read
-    steps:
-      - name: Setup uv
-        uses: astral-sh/setup-uv@v7
-
-      - name: Install Python
-        run: uv python install 3.11
-
-      - name: Download cli artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: dist-cli
-          path: dist/cli
-
-      - name: Publish psa-strategy-cli
-        run: uv publish --trusted-publishing always --check-url https://pypi.org/simple dist/cli/*
-
-      - name: Post-publish smoke test
-        env:
-          RELEASE_TAG: ${{ github.ref_name }}
+      - name: Lockstep release flow is disabled
         run: |
-          RELEASE_VERSION="${RELEASE_TAG#v}"
-          for attempt in {1..20}; do
-            if uvx --from "psa-strategy-cli==${RELEASE_VERSION}" psa --version; then
-              exit 0
-            fi
-            echo "package psa-strategy-cli==${RELEASE_VERSION} is not ready yet (${attempt}/20)"
-            sleep 15
-          done
-          echo "failed to execute published package psa-strategy-cli==${RELEASE_VERSION}"
+          echo "legacy lockstep release tags are disabled"
+          echo "use component tags: core-vX.Y.Z or cli-vX.Y.Z"
           exit 1
