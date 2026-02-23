@@ -4,7 +4,7 @@ import shutil
 from pathlib import Path
 
 import pytest
-from psa_cli.errors import CliValidationError
+from psa_cli.errors import CliIoError, CliValidationError
 from psa_cli.skills import RUNTIME_CONFIG, install_skill
 
 
@@ -45,10 +45,12 @@ def test_install_skill_codex_includes_agents_config(tmp_path: Path, clean_skill_
     result = install_skill("codex", home_dir=tmp_path)
 
     assert result["runtime"] == "codex"
+    assert Path(result["dest"]) == tmp_path / ".codex" / "skills" / "psa-strategist"
     assert "agents_config" in result
     agents_cfg = result["agents_config"]
     assert agents_cfg["status"] == "installed"
     assert Path(agents_cfg["path"]).exists()
+    assert Path(agents_cfg["path"]) == tmp_path / ".codex" / "agents" / "psa-strategist.yaml"
 
 
 def test_install_skill_idempotent(tmp_path: Path, clean_skill_dest: None):
@@ -75,3 +77,16 @@ def test_install_skill_via_cli(
     dest = tmp_path / ".opencode" / "skills" / "psa-strategist"
     assert dest.exists()
     assert (dest / "SKILL.md").exists()
+
+
+def test_install_skill_maps_copy_oserror_to_cli_io_error(
+    tmp_path: Path, clean_skill_dest: None, monkeypatch: pytest.MonkeyPatch
+):
+    def _raise_oserror(*args: object, **kwargs: object) -> None:
+        raise OSError("disk full")
+
+    monkeypatch.setattr(shutil, "copy2", _raise_oserror)
+
+    with pytest.raises(CliIoError) as exc_info:
+        install_skill("claude", home_dir=tmp_path)
+    assert "failed to copy" in str(exc_info.value)

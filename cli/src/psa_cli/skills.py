@@ -4,7 +4,7 @@ import shutil
 from pathlib import Path
 from typing import Any
 
-from psa_cli.errors import CliValidationError
+from psa_cli.errors import CliIoError, CliValidationError
 
 RUNTIME_CONFIG: dict[str, dict[str, Any]] = {
     "claude": {
@@ -13,7 +13,7 @@ RUNTIME_CONFIG: dict[str, dict[str, Any]] = {
     },
     "codex": {
         "name": "Codex CLI",
-        "skills_dir": "~/.agents/skills",
+        "skills_dir": "~/.codex/skills",
         "agents_dir": "~/.codex/agents",
     },
     "opencode": {
@@ -85,8 +85,26 @@ RUNTIME_CONFIG: dict[str, dict[str, Any]] = {
 SKILL_NAME = "psa-strategist"
 
 
+def supported_runtimes() -> tuple[str, ...]:
+    return tuple(sorted(RUNTIME_CONFIG.keys()))
+
+
+def _is_valid_skill_source(path: Path) -> bool:
+    return (path / "SKILL.md").is_file()
+
+
 def _get_skill_source_path() -> Path:
-    return Path(__file__).parent / "skills" / SKILL_NAME
+    packaged_path = Path(__file__).parent / "skills" / SKILL_NAME
+    if _is_valid_skill_source(packaged_path):
+        return packaged_path
+
+    # Dev fallback: in workspace sources the skill lives in repository root `skills/`.
+    for parent in Path(__file__).resolve().parents:
+        candidate = parent / "skills" / SKILL_NAME
+        if _is_valid_skill_source(candidate):
+            return candidate
+
+    return packaged_path
 
 
 def _copy_skill_files(source: Path, dest: Path) -> tuple[int, int]:
@@ -104,8 +122,17 @@ def _copy_skill_files(source: Path, dest: Path) -> tuple[int, int]:
             skipped += 1
             continue
 
-        dest_file.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(item, dest_file)
+        try:
+            dest_file.parent.mkdir(parents=True, exist_ok=True)
+        except OSError as exc:
+            reason = exc.strerror or str(exc)
+            raise CliIoError(f"failed to create directory '{dest_file.parent}': {reason}") from exc
+
+        try:
+            shutil.copy2(item, dest_file)
+        except OSError as exc:
+            reason = exc.strerror or str(exc)
+            raise CliIoError(f"failed to copy '{item}' to '{dest_file}': {reason}") from exc
         installed += 1
 
     return installed, skipped
@@ -129,19 +156,27 @@ def _install_agents_config(runtime: str, home_dir: Path | None = None) -> dict[s
         return None
 
     dest_agents_dir = _expand_skill_dir(agents_dir, home_dir)
-    dest_agents_dir.mkdir(parents=True, exist_ok=True)
+    try:
+        dest_agents_dir.mkdir(parents=True, exist_ok=True)
+    except OSError as exc:
+        reason = exc.strerror or str(exc)
+        raise CliIoError(f"failed to create directory '{dest_agents_dir}': {reason}") from exc
 
     dest_yaml = dest_agents_dir / f"{SKILL_NAME}.yaml"
     if dest_yaml.exists():
         return {"path": str(dest_yaml), "status": "skipped"}
 
-    shutil.copy2(source_yaml, dest_yaml)
+    try:
+        shutil.copy2(source_yaml, dest_yaml)
+    except OSError as exc:
+        reason = exc.strerror or str(exc)
+        raise CliIoError(f"failed to copy '{source_yaml}' to '{dest_yaml}': {reason}") from exc
     return {"path": str(dest_yaml), "status": "installed"}
 
 
 def install_skill(runtime: str, home_dir: Path | None = None) -> dict[str, Any]:
     if runtime not in RUNTIME_CONFIG:
-        valid_runtimes = ", ".join(sorted(RUNTIME_CONFIG.keys()))
+        valid_runtimes = ", ".join(supported_runtimes())
         raise CliValidationError(f"unknown runtime '{runtime}'. Supported: {valid_runtimes}")
 
     config = RUNTIME_CONFIG[runtime]
@@ -149,7 +184,7 @@ def install_skill(runtime: str, home_dir: Path | None = None) -> dict[str, Any]:
     dest_skill_dir = skills_dir / SKILL_NAME
 
     source_path = _get_skill_source_path()
-    if not source_path.exists():
+    if not _is_valid_skill_source(source_path):
         raise CliValidationError(f"skill '{SKILL_NAME}' not found in package resources")
 
     installed, skipped = _copy_skill_files(source_path, dest_skill_dir)

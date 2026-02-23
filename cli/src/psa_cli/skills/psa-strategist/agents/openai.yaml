@@ -1,4 +1,0 @@
-interface:
-  display_name: "PSA Strategist"
-  short_description: "Design and maintain PSA strategies"
-  default_prompt: "Use $psa-strategist to build, refine, and evaluate PSA strategies with strategy/log persistence through the simplified CLI-only workflow."
