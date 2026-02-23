@@ -68,14 +68,13 @@ Use $psa-strategist and explain PSA in plain language.
 Claude Code:
 
 ```text
-/skill psa-strategist
-Explain PSA in plain language.
+/psa-strategist Explain PSA in plain language.
 ```
 
 Example follow-up (any runtime after skill activation):
 
 ```text
-Draft a simple bear strategy for long-term accumulation.
+I think asset A may drop to point m. I want to start buying slowly from point n. Then from x to y, I want to buy faster, up to about 2x the pace.
 ```
 
 Stateful CLI storage layout (inside current working directory):
