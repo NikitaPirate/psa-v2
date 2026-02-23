@@ -3,6 +3,7 @@ from __future__ import annotations
 import pytest
 from psa_cli.errors import CliArgumentError
 from psa_cli.parser import build_parser
+from psa_cli.skills import supported_runtimes
 
 
 def test_parser_parses_strategy_upsert() -> None:
@@ -50,3 +51,18 @@ def test_parser_requires_json_flag() -> None:
         parser.parse_args(
             ["strategy", "list"],
         )
+
+
+def test_parser_parses_install_skill_with_supported_runtime() -> None:
+    parser = build_parser()
+    args = parser.parse_args(["install-skill", "codex", "--json"])
+    assert args.command_key == "install-skill"
+    assert args.runtime == "codex"
+    assert args.json_output is True
+
+
+@pytest.mark.parametrize("runtime", supported_runtimes())
+def test_parser_install_skill_runtime_choices_match_runtime_config(runtime: str) -> None:
+    parser = build_parser()
+    args = parser.parse_args(["install-skill", runtime, "--json"])
+    assert args.runtime == runtime

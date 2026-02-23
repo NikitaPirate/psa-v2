@@ -10,6 +10,7 @@ from psa_core.contracts import (
 )
 
 from psa_cli.errors import CliValidationError
+from psa_cli.skills import install_skill
 from psa_cli.store import (
     append_log,
     list_logs,
@@ -84,5 +85,7 @@ def execute_command(command: str, payload: Any, *, args: Any) -> dict[str, Any]:
             "strategy_id": args.strategy_id,
             "logs": tail_logs(args.strategy_id, limit=args.limit),
         }
+    if command == "install-skill":
+        return install_skill(args.runtime)
 
     raise CliValidationError(f"unsupported command: {command}")

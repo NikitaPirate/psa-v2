@@ -24,3 +24,4 @@ packages = ["src/psa_cli"]
 
 [tool.hatch.build.targets.sdist.force-include]
 "../schemas" = "src/psa_cli/schemas"
+"../skills" = "src/psa_cli/skills"

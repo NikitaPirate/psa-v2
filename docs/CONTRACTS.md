@@ -31,6 +31,15 @@ Strategy/log responses are CLI-defined JSON payloads validated by integration te
   - `error.details`
 - Exit code `0` means success; any non-zero code means failure.
 
+### `install-skill` command
+
+- Command form: `psa install-skill <runtime> --json`.
+- Runtime id is validated by parser choices (see `psa install-skill --help`).
+- Success payload includes:
+  - `runtime`, `runtime_name`, `skill`, `dest`,
+  - `files_installed`, `files_skipped`,
+  - optional `agents_config` when runtime has extra agent config target.
+
 ## Data contract notes
 
 - Time fields use ISO-8601 date-time strings with timezone.

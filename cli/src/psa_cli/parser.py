@@ -5,6 +5,7 @@ from importlib.metadata import PackageNotFoundError, version
 from typing import Any, NoReturn
 
 from psa_cli.errors import CliArgumentError
+from psa_cli.skills import supported_runtimes
 
 
 class CliArgumentParser(argparse.ArgumentParser):
@@ -74,6 +75,14 @@ def _add_strategy_commands(subparsers: Any) -> None:
     _add_required_json_flag(exists)
 
 
+def _add_install_skill_command(subparsers: Any) -> None:
+    install = subparsers.add_parser("install-skill", help="Install skill to AI runtime")
+    install.set_defaults(command_key="install-skill")
+    runtime_choices = supported_runtimes()
+    install.add_argument("runtime", choices=runtime_choices, help="Target runtime")
+    _add_required_json_flag(install)
+
+
 def _add_log_commands(subparsers: Any) -> None:
     log_parser = subparsers.add_parser("log", help="Log storage operations")
     log_subparsers = log_parser.add_subparsers(dest="log_command", required=True)
@@ -113,4 +122,5 @@ def build_parser() -> argparse.ArgumentParser:
     _add_evaluate_commands(subparsers)
     _add_strategy_commands(subparsers)
     _add_log_commands(subparsers)
+    _add_install_skill_command(subparsers)
     return parser

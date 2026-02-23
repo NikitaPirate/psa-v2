@@ -27,21 +27,54 @@ Works in `bash`, `zsh`, and `fish`.
 uv sync
 ```
 
-## CLI for users
+## Getting Started (AI agent)
 
 The published CLI package name is `psa-strategy-cli`, while the executable command is `psa`.
 
-Run without installing:
-
-```bash
-uvx --from psa-strategy-cli psa --version
-```
-
-Install globally as a tool:
+1. Install CLI:
 
 ```bash
 uv tool install psa-strategy-cli
 psa --version
+```
+
+2. Install `psa-strategist` skill for your runtime:
+
+```bash
+psa install-skill codex --json
+```
+
+Other common runtimes:
+
+```bash
+psa install-skill claude --json
+psa install-skill opencode --json
+```
+
+Full runtime list:
+
+```bash
+psa install-skill --help
+```
+
+3. Start your AI agent and activate the skill.
+
+Codex:
+
+```text
+Use $psa-strategist and explain PSA in plain language.
+```
+
+Claude Code:
+
+```text
+/psa-strategist Explain PSA in plain language.
+```
+
+Example follow-up (any runtime after skill activation):
+
+```text
+I think asset A may drop to point m. I want to start buying slowly from point n. Then from x to y, I want to buy faster, up to about 2x the pace.
 ```
 
 Stateful CLI storage layout (inside current working directory):
@@ -49,11 +82,12 @@ Stateful CLI storage layout (inside current working directory):
 - `.psa/strategies/<strategy_id>/strategy.json`
 - `.psa/strategies/<strategy_id>/log.ndjson`
 
-Core command groups:
+## CLI reference (short)
 
-- `psa strategy ...` for strategy CRUD-lite (`upsert/list/show/exists`)
-- `psa log ...` for append-only journal (`append/list/show/tail`)
-- `psa evaluate-* --strategy-id <id>` for computation over persisted strategies
+- `psa strategy ...` - strategy CRUD-lite (`upsert/list/show/exists`)
+- `psa log ...` - append-only journal (`append/list/show/tail`)
+- `psa evaluate-* --strategy-id <id>` - deterministic evaluation using stored strategies
+- `psa install-skill <runtime> --json` - install `psa-strategist` for target runtime
 
 ## Run tests
 
