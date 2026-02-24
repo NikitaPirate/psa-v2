@@ -58,6 +58,28 @@ def test_parser_parses_install_skill_with_supported_runtime() -> None:
     args = parser.parse_args(["install-skill", "codex", "--json"])
     assert args.command_key == "install-skill"
     assert args.runtime == "codex"
+    assert args.skills_dir is None
+    assert args.agents_dir is None
+    assert args.json_output is True
+
+
+def test_parser_parses_install_skill_with_custom_dirs() -> None:
+    parser = build_parser()
+    args = parser.parse_args(
+        [
+            "install-skill",
+            "openclaw",
+            "--skills-dir",
+            "/tmp/skills",
+            "--agents-dir",
+            "/tmp/agents",
+            "--json",
+        ]
+    )
+    assert args.command_key == "install-skill"
+    assert args.runtime == "openclaw"
+    assert args.skills_dir == "/tmp/skills"
+    assert args.agents_dir == "/tmp/agents"
     assert args.json_output is True
 
 

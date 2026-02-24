@@ -33,8 +33,9 @@ Strategy/log responses are CLI-defined JSON payloads validated by integration te
 
 ### `install-skill` command
 
-- Command form: `psa install-skill <runtime> --json`.
+- Command form: `psa install-skill <runtime> [--skills-dir /path/to/skills-dir] [--agents-dir /path/to/agents-dir] --json`.
 - Runtime id is validated by parser choices (see `psa install-skill --help`).
+- For unknown/unsupported runtimes, use `runtime=any-runtime` with required `--skills-dir`.
 - Success payload includes:
   - `runtime`, `runtime_name`, `skill`, `dest`,
   - `files_installed`, `files_skipped`,

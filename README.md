@@ -49,6 +49,20 @@ Other common runtimes:
 ```bash
 psa install-skill claude --json
 psa install-skill opencode --json
+psa install-skill openclaw --json
+```
+
+Custom installation directories:
+
+```bash
+psa install-skill openclaw --skills-dir /path/to/skills-dir --json
+psa install-skill codex --skills-dir /path/to/skills-dir --agents-dir /path/to/agents-dir --json
+```
+
+Unknown runtime:
+
+```bash
+psa install-skill any-runtime --skills-dir /path/to/skills-dir --json
 ```
 
 Full runtime list:
@@ -87,7 +101,7 @@ Stateful CLI storage layout (inside current working directory):
 - `psa strategy ...` - strategy CRUD-lite (`upsert/list/show/exists`)
 - `psa log ...` - append-only journal (`append/list/show/tail`)
 - `psa evaluate-* --strategy-id <id>` - deterministic evaluation using stored strategies
-- `psa install-skill <runtime> --json` - install `psa-strategist` for target runtime
+- `psa install-skill <runtime> [--skills-dir /path/to/skills-dir] [--agents-dir /path/to/agents-dir] --json` - install `psa-strategist` for target runtime
 
 ## Run tests
 

@@ -86,6 +86,10 @@ def execute_command(command: str, payload: Any, *, args: Any) -> dict[str, Any]:
             "logs": tail_logs(args.strategy_id, limit=args.limit),
         }
     if command == "install-skill":
-        return install_skill(args.runtime)
+        return install_skill(
+            args.runtime,
+            skills_dir_override=getattr(args, "skills_dir", None),
+            agents_dir_override=getattr(args, "agents_dir", None),
+        )
 
     raise CliValidationError(f"unsupported command: {command}")

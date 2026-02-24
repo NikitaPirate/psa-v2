@@ -7,6 +7,9 @@ from typing import Any
 from psa_cli.errors import CliIoError, CliValidationError
 
 RUNTIME_CONFIG: dict[str, dict[str, Any]] = {
+    "any-runtime": {
+        "name": "Any Runtime",
+    },
     "claude": {
         "name": "Claude Code",
         "skills_dir": "~/.claude/skills",
@@ -19,6 +22,10 @@ RUNTIME_CONFIG: dict[str, dict[str, Any]] = {
     "opencode": {
         "name": "OpenCode",
         "skills_dir": "~/.opencode/skills",
+    },
+    "openclaw": {
+        "name": "OpenClaw",
+        "skills_dir": "~/.openclaw/skills",
     },
     "gemini": {
         "name": "Gemini CLI",
@@ -145,9 +152,13 @@ def _expand_skill_dir(skill_dir: str, home_dir: Path | None = None) -> Path:
     return Path(skill_dir)
 
 
-def _install_agents_config(runtime: str, home_dir: Path | None = None) -> dict[str, Any] | None:
+def _install_agents_config(
+    runtime: str,
+    home_dir: Path | None = None,
+    agents_dir_override: str | None = None,
+) -> dict[str, Any] | None:
     config = RUNTIME_CONFIG.get(runtime, {})
-    agents_dir = config.get("agents_dir")
+    agents_dir = agents_dir_override if agents_dir_override else config.get("agents_dir")
     if not agents_dir:
         return None
 
@@ -174,13 +185,26 @@ def _install_agents_config(runtime: str, home_dir: Path | None = None) -> dict[s
     return {"path": str(dest_yaml), "status": "installed"}
 
 
-def install_skill(runtime: str, home_dir: Path | None = None) -> dict[str, Any]:
+def install_skill(
+    runtime: str,
+    home_dir: Path | None = None,
+    skills_dir_override: str | None = None,
+    agents_dir_override: str | None = None,
+) -> dict[str, Any]:
     if runtime not in RUNTIME_CONFIG:
         valid_runtimes = ", ".join(supported_runtimes())
         raise CliValidationError(f"unknown runtime '{runtime}'. Supported: {valid_runtimes}")
 
     config = RUNTIME_CONFIG[runtime]
-    skills_dir = _expand_skill_dir(config["skills_dir"], home_dir)
+    if runtime == "any-runtime" and not skills_dir_override:
+        raise CliValidationError("--skills-dir is required for runtime 'any-runtime'")
+
+    default_skills_dir = config.get("skills_dir")
+    resolved_skills_dir = skills_dir_override or default_skills_dir
+    if not resolved_skills_dir:
+        raise CliValidationError(f"runtime '{runtime}' has no default skills directory")
+
+    skills_dir = _expand_skill_dir(resolved_skills_dir, home_dir)
     dest_skill_dir = skills_dir / SKILL_NAME
 
     source_path = _get_skill_source_path()
@@ -198,7 +222,9 @@ def install_skill(runtime: str, home_dir: Path | None = None) -> dict[str, Any]:
         "files_skipped": skipped,
     }
 
-    agents_result = _install_agents_config(runtime, home_dir)
+    agents_result = _install_agents_config(
+        runtime, home_dir, agents_dir_override=agents_dir_override
+    )
     if agents_result:
         result["agents_config"] = agents_result
 

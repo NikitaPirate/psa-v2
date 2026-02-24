@@ -69,6 +69,11 @@ All operational commands require `--json`.
 - `psa evaluate-rows --strategy-id <id> --input <path|-> --output <path|-> --json [--pretty]`
 - `psa evaluate-ranges --strategy-id <id> --input <path|-> --output <path|-> --json [--pretty]`
 
+### Skill install
+
+- `psa install-skill <runtime> [--skills-dir /path/to/skills-dir] [--agents-dir /path/to/agents-dir] --json`
+- unknown runtime fallback: `psa install-skill any-runtime --skills-dir /path/to/skills-dir --json`
+
 `-` means standard stream (`stdin` for `--input`, `stdout` for `--output`).
 
 ## Examples

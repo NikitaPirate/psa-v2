@@ -80,6 +80,20 @@ def _add_install_skill_command(subparsers: Any) -> None:
     install.set_defaults(command_key="install-skill")
     runtime_choices = supported_runtimes()
     install.add_argument("runtime", choices=runtime_choices, help="Target runtime")
+    install.add_argument(
+        "--skills-dir",
+        dest="skills_dir",
+        required=False,
+        default=None,
+        help="Custom skills directory override",
+    )
+    install.add_argument(
+        "--agents-dir",
+        dest="agents_dir",
+        required=False,
+        default=None,
+        help="Custom agents directory override (if runtime supports agents config)",
+    )
     _add_required_json_flag(install)
 
 
