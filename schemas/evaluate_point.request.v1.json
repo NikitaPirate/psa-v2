@@ -4,59 +4,9 @@
   "title": "EvaluatePointRequestV1",
   "type": "object",
   "additionalProperties": false,
-  "required": ["strategy", "timestamp", "price"],
+  "required": ["timestamp", "price"],
   "properties": {
-    "strategy": { "$ref": "#/$defs/StrategySpec" },
     "timestamp": { "type": "string", "format": "date-time" },
     "price": { "type": "number", "exclusiveMinimum": 0 }
-  },
-  "$defs": {
-    "PriceSegment": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["price_low", "price_high", "weight"],
-      "properties": {
-        "price_low": { "type": "number", "exclusiveMinimum": 0 },
-        "price_high": { "type": "number", "exclusiveMinimum": 0 },
-        "weight": { "type": "number", "minimum": 0 }
-      }
-    },
-    "TimeSegment": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["start_ts", "end_ts", "k_start", "k_end"],
-      "properties": {
-        "start_ts": { "type": "string", "format": "date-time" },
-        "end_ts": { "type": "string", "format": "date-time" },
-        "k_start": { "type": "number", "exclusiveMinimum": 0 },
-        "k_end": { "type": "number", "exclusiveMinimum": 0 }
-      }
-    },
-    "StrategySpec": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["market_mode", "price_segments"],
-      "properties": {
-        "market_mode": { "type": "string", "enum": ["bear", "bull"] },
-        "price_segments": {
-          "type": "array",
-          "minItems": 1,
-          "items": { "$ref": "#/$defs/PriceSegment" },
-          "contains": {
-            "type": "object",
-            "required": ["weight"],
-            "properties": {
-              "weight": { "type": "number", "exclusiveMinimum": 0 }
-            }
-          },
-          "minContains": 1
-        },
-        "time_segments": {
-          "type": "array",
-          "items": { "$ref": "#/$defs/TimeSegment" },
-          "default": []
-        }
-      }
-    }
   }
 }

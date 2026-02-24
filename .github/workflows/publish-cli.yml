@@ -1,0 +1,74 @@
+name: Publish CLI
+
+on:
+  push:
+    tags:
+      - "cli-v*"
+
+jobs:
+  build-cli:
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v7
+
+      - name: Install Python
+        run: uv python install 3.11
+
+      - name: Validate CLI release state
+        run: uv run --no-project python scripts/release/verify_component_release.py --tag "${GITHUB_REF_NAME}"
+
+      - name: Build psa-strategy-cli
+        run: uv build --package psa-strategy-cli --no-sources --out-dir dist/cli --clear
+
+      - name: Upload CLI artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-cli
+          path: dist/cli/*
+          if-no-files-found: error
+
+  publish-cli:
+    needs: build-cli
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      actions: read
+      id-token: write
+      contents: read
+    steps:
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v7
+
+      - name: Install Python
+        run: uv python install 3.11
+
+      - name: Download CLI artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: dist-cli
+          path: dist/cli
+
+      - name: Publish psa-strategy-cli
+        run: uv publish --trusted-publishing always --check-url https://pypi.org/simple dist/cli/*
+
+      - name: Post-publish smoke test
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          RELEASE_VERSION="${RELEASE_TAG#cli-v}"
+          for attempt in {1..40}; do
+            if uvx --refresh --no-cache --from "psa-strategy-cli==${RELEASE_VERSION}" psa --version; then
+              exit 0
+            fi
+            echo "package psa-strategy-cli==${RELEASE_VERSION} is not ready yet (${attempt}/40)"
+            sleep 15
+          done
+          echo "failed to execute published package psa-strategy-cli==${RELEASE_VERSION}"
+          exit 1

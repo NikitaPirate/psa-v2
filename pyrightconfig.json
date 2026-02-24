@@ -1,0 +1,12 @@
+{
+  "pythonVersion": "3.11",
+  "typeCheckingMode": "basic",
+  "include": ["core/src", "cli/src", "core/tests", "cli/tests", "scripts"],
+  "exclude": [".venv", "dist", "build", "api"],
+  "executionEnvironments": [
+    {
+      "root": ".",
+      "extraPaths": ["core/src", "cli/src"]
+    }
+  ]
+}

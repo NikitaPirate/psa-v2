@@ -4,7 +4,6 @@ from datetime import UTC, datetime, timedelta
 
 from hypothesis import given, settings
 from hypothesis import strategies as st
-
 from psa_core import PriceSegment, StrategySpec, TimeSegment, evaluate_point
 
 BASE_TS = datetime(2026, 1, 1, tzinfo=UTC)

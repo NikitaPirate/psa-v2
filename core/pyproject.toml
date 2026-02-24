@@ -1,5 +1,5 @@
 [project]
-name = "psa-core"
+name = "psa-strategy-core"
 version = "0.1.0"
 description = "Pure PSA computation core"
 readme = "README.md"

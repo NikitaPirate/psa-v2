@@ -1,7 +1,7 @@
 # PSA Platform
 
 Monorepo workspace for PSA tooling (engine, CLI, API, integrations).  
-Current implemented module: a compact, deterministic Python core for directional `price × time` share strategies designed for LLM agents.
+Current implemented modules: deterministic computation core plus AI-first stateful CLI for strategy/log workflows.
 
 ## Scope (Phase 0)
 
@@ -27,6 +27,82 @@ Works in `bash`, `zsh`, and `fish`.
 uv sync
 ```
 
+## Getting Started (AI agent)
+
+The published CLI package name is `psa-strategy-cli`, while the executable command is `psa`.
+
+1. Install CLI:
+
+```bash
+uv tool install psa-strategy-cli
+psa --version
+```
+
+2. Install `psa-strategist` skill for your runtime:
+
+```bash
+psa install-skill codex --json
+```
+
+Other common runtimes:
+
+```bash
+psa install-skill claude --json
+psa install-skill opencode --json
+psa install-skill openclaw --json
+```
+
+Custom installation directories:
+
+```bash
+psa install-skill openclaw --skills-dir /path/to/skills-dir --json
+psa install-skill codex --skills-dir /path/to/skills-dir --agents-dir /path/to/agents-dir --json
+```
+
+Unknown runtime:
+
+```bash
+psa install-skill any-runtime --skills-dir /path/to/skills-dir --json
+```
+
+Full runtime list:
+
+```bash
+psa install-skill --help
+```
+
+3. Start your AI agent and activate the skill.
+
+Codex:
+
+```text
+Use $psa-strategist and explain PSA in plain language.
+```
+
+Claude Code:
+
+```text
+/psa-strategist Explain PSA in plain language.
+```
+
+Example follow-up (any runtime after skill activation):
+
+```text
+I think asset A may drop to point m. I want to start buying slowly from point n. Then from x to y, I want to buy faster, up to about 2x the pace.
+```
+
+Stateful CLI storage layout (inside current working directory):
+
+- `.psa/strategies/<strategy_id>/strategy.json`
+- `.psa/strategies/<strategy_id>/log.ndjson`
+
+## CLI reference (short)
+
+- `psa strategy ...` - strategy CRUD-lite (`upsert/list/show/exists`)
+- `psa log ...` - append-only journal (`append/list/show/tail`)
+- `psa evaluate-* --strategy-id <id>` - deterministic evaluation using stored strategies
+- `psa install-skill <runtime> [--skills-dir /path/to/skills-dir] [--agents-dir /path/to/agents-dir] --json` - install `psa-strategist` for target runtime
+
 ## Run tests
 
 ```bash
@@ -51,12 +127,14 @@ See:
 - formulas and invariants: `docs/MATH_SPEC.md`
 - JSON contracts and examples: `docs/CONTRACTS.md`
 - test matrix: `docs/TESTING_STRATEGY.md`
+- release process: `docs/RELEASE_RUNBOOK.md`
 
 ## Repository layout
 
 - `core/src/psa_core/` - core package.
 - `cli/src/psa_cli/` - CLI package.
 - `api/src/psa_api/` - FastAPI package.
+- `skills/` - agent skill definitions and reference playbooks.
 - `schemas/` - versioned JSON schemas.
 - `examples/` - contract payload examples.
 - `core/tests/` - core unit, invariants, and contract tests.

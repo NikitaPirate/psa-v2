@@ -67,3 +67,15 @@ Do not mix tutorial prose into normative sections.
 - Use `uv sync` to prepare environment (do not add `--group dev`).
 - Run tools via `uv run <tool>` (for example: `uv run pytest`, `uv run ruff check .`).
 - Do not use `uv run --with ...` for regular project commands or hooks.
+
+## 10. Release workflow docs
+
+- Tag-driven release process for `psa-strategy-core` and `psa-strategy-cli` is documented in `docs/RELEASE_RUNBOOK.md`.
+- Keep release process details in the runbook and link to it instead of duplicating instructions in other docs.
+
+## 11. Agent CLI boundary
+
+- For agent workflows, `psa` CLI is the only supported operational interface for strategy/log state changes.
+- Agents must not directly create, edit, or delete files under `.psa/`; use CLI commands instead.
+- If a required workflow is not expressible via CLI, extend CLI contracts first and then use the new command surface.
+- Rationale and architecture context: `docs/ARCHITECTURE.md` and `docs/adr/0004-cli-stateful-local-store.md`.

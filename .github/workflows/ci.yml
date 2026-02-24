@@ -1,0 +1,57 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  lint-test-build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v7
+
+      - name: Install Python
+        run: uv python install 3.11
+
+      - name: Sync workspace dependencies
+        run: uv sync
+
+      - name: Ruff
+        run: uv run ruff check .
+
+      - name: Pytest
+        run: uv run pytest
+
+      - name: Release tooling sanity checks
+        run: |
+          CORE_VERSION="$(sed -n 's/^version = "\(.*\)"/\1/p' core/pyproject.toml | head -n 1)"
+          CLI_VERSION="$(sed -n 's/^version = "\(.*\)"/\1/p' cli/pyproject.toml | head -n 1)"
+          uv run --no-project python scripts/release/verify_component_release.py --tag "core-v${CORE_VERSION}"
+          uv run --no-project python scripts/release/verify_component_release.py --tag "cli-v${CLI_VERSION}"
+
+      - name: Build psa-strategy-core
+        run: uv build --package psa-strategy-core --out-dir dist/core
+
+      - name: Build psa-strategy-cli
+        run: uv build --package psa-strategy-cli --out-dir dist/cli
+
+      - name: Smoke test version from local wheels
+        run: uvx --from dist/cli/*.whl --with dist/core/*.whl psa --version
+
+      - name: Smoke test strategy upsert and evaluate-point from local wheels
+        run: |
+          uvx --from dist/cli/*.whl --with dist/core/*.whl psa strategy upsert \
+            --strategy-id smoke \
+            --input examples/strategy_bear.json \
+            --json
+          uvx --from dist/cli/*.whl --with dist/core/*.whl psa evaluate-point \
+            --strategy-id smoke \
+            --input examples/evaluate_point_input.json \
+            --output - \
+            --json

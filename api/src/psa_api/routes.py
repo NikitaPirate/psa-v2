@@ -11,10 +11,9 @@ from psa_core.contracts import (
 
 from psa_api.errors import ApiLimitError
 from psa_api.schema_validation import (
-    EVALUATE_POINT_REQUEST_SCHEMA,
-    EVALUATE_ROWS_FROM_RANGES_REQUEST_SCHEMA,
-    EVALUATE_ROWS_REQUEST_SCHEMA,
-    validate_request_payload,
+    validate_point_envelope,
+    validate_ranges_envelope,
+    validate_rows_envelope,
 )
 
 router = APIRouter(prefix="/v1", tags=["v1"])
@@ -25,13 +24,13 @@ CLI_HINT = "For larger batch jobs, use the CLI workflow."
 
 @router.post("/evaluate/point")
 async def evaluate_point_endpoint(payload: dict[str, Any]) -> dict[str, Any]:
-    validate_request_payload(payload, schema_name=EVALUATE_POINT_REQUEST_SCHEMA)
+    validate_point_envelope(payload)
     return evaluate_point_payload(payload)
 
 
 @router.post("/evaluate/rows")
 async def evaluate_rows_endpoint(payload: dict[str, Any]) -> dict[str, Any]:
-    validate_request_payload(payload, schema_name=EVALUATE_ROWS_REQUEST_SCHEMA)
+    validate_rows_envelope(payload)
 
     rows = payload.get("rows", [])
     row_count = len(rows)
@@ -39,8 +38,7 @@ async def evaluate_rows_endpoint(payload: dict[str, Any]) -> dict[str, Any]:
         raise ApiLimitError(
             code="rows_limit_exceeded",
             message=(
-                f"rows length must be <= {MAX_EVALUATION_ROWS}. "
-                f"Received {row_count}. {CLI_HINT}"
+                f"rows length must be <= {MAX_EVALUATION_ROWS}. Received {row_count}. {CLI_HINT}"
             ),
             details=[{"field": "rows", "actual": row_count, "limit": MAX_EVALUATION_ROWS}],
         )
@@ -50,7 +48,7 @@ async def evaluate_rows_endpoint(payload: dict[str, Any]) -> dict[str, Any]:
 
 @router.post("/evaluate/rows-from-ranges")
 async def evaluate_rows_from_ranges_endpoint(payload: dict[str, Any]) -> dict[str, Any]:
-    validate_request_payload(payload, schema_name=EVALUATE_ROWS_FROM_RANGES_REQUEST_SCHEMA)
+    validate_ranges_envelope(payload)
 
     price_steps = int(payload["price_steps"])
     time_steps = int(payload["time_steps"])

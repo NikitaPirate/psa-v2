@@ -2,38 +2,51 @@
 
 ## System role
 
-`PSA Platform` is a monorepo workspace. In phase 0, implemented functionality is a pure computation core for directional share targets.
+`PSA Platform` is a monorepo workspace with two active runtime surfaces:
 
-Inputs:
-- strategy definition,
-- timestamp,
-- market price.
-
-Outputs:
-- numeric evaluation row(s) for machine consumption.
+- pure computation core for directional share targets;
+- AI-first CLI that stores strategies and append-only logs locally.
 
 ## Module map
 
-- `psa_core/types.py` - immutable domain dataclasses.
-- `psa_core/validation.py` - semantic validation for domain and API-level parameters.
-- `psa_core/math.py` - pure math primitives.
-- `psa_core/engine.py` - public evaluation API.
-- `psa_core/contracts.py` - JSON-like payload adapters.
+Core:
+- `core/src/psa_core/types.py` - immutable domain dataclasses.
+- `core/src/psa_core/validation.py` - semantic validation.
+- `core/src/psa_core/math.py` - pure math primitives.
+- `core/src/psa_core/engine.py` - public evaluation API.
+- `core/src/psa_core/contracts.py` - JSON-like payload adapters.
 
-## Validation split
+CLI:
+- `cli/src/psa_cli/parser.py` - command model and arguments.
+- `cli/src/psa_cli/app.py` - command lifecycle, JSON I/O, and error envelope.
+- `cli/src/psa_cli/handlers.py` - command dispatch.
+- `cli/src/psa_cli/store.py` - local strategy/log persistence.
+- `cli/src/psa_cli/locks.py` - per-strategy write lock.
+- `cli/src/psa_cli/schema.py` - request schema loading and validation.
 
-- `contracts.py`: validates raw payload shape/types for external JSON-like input.
-- `validation.py`: validates semantic constraints used by the core (strategy invariants, point/range arguments).
-- `engine.py`: orchestration and computation only; it calls validators instead of owning semantic rules.
+## Local storage
+
+Per working directory:
+
+- `.psa/strategies/<strategy_id>/strategy.json`
+- `.psa/strategies/<strategy_id>/log.ndjson`
+
+Writes are synchronized by `.psa/strategies/<strategy_id>/.lock`.
 
 ## Data flow
 
-1. Parse and validate boundary payloads.
-2. Evaluate time coefficient `k(t)`.
-3. Evaluate base share on real price.
-4. Compute virtual price from `market_mode` and `k(t)`.
-5. Evaluate target share.
-6. Return stable, order-preserving rows.
+1. Parse CLI arguments and enforce `--json`.
+2. Validate input payload with command schema (for input-based commands).
+3. For evaluate commands, load strategy by `strategy_id` from local storage.
+4. Execute core evaluation or storage mutation.
+5. Return stable JSON success payload or JSON error envelope.
+
+## Validation split
+
+- `core/contracts.py`: runtime adapter checks and conversion for core evaluation inputs.
+- `core/validation.py`: semantic domain constraints and invariants.
+- `cli/schema.py`: JSON Schema boundary checks for CLI payloads.
+- `cli/store.py`: strategy/log existence and persistence integrity checks.
 
 ## Out of scope
 
@@ -43,7 +56,7 @@ Outputs:
 - Regime auto-detection.
 - Rebalancing strategy construction.
 - Fee, commission, and slippage accounting.
-- Portfolio optimization; this package provides abstract conditional math models only.
+- Network backends and remote storage.
 
 ## Cross-reference
 

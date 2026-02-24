@@ -5,7 +5,6 @@ from pathlib import Path
 
 import pytest
 from jsonschema import Draft202012Validator, FormatChecker, ValidationError, validate
-
 from psa_core.contracts import (
     ContractError,
     evaluate_point_payload,
@@ -30,45 +29,70 @@ def test_schema_files_are_valid() -> None:
 
 
 def test_examples_match_request_schemas_and_produce_valid_responses() -> None:
-    point_request = _load_json(EXAMPLES / "bear_accumulate_point.json")
+    point_full_request = _load_json(EXAMPLES / "bear_accumulate_point.json")
+    strategy_request_schema = _load_json(SCHEMAS / "strategy_upsert.request.v1.json")
     point_request_schema = _load_json(SCHEMAS / "evaluate_point.request.v1.json")
     point_response_schema = _load_json(SCHEMAS / "evaluate_point.response.v1.json")
 
-    validate(point_request, point_request_schema, format_checker=FORMAT_CHECKER)
-    point_response = evaluate_point_payload(point_request)
+    validate(point_full_request["strategy"], strategy_request_schema, format_checker=FORMAT_CHECKER)
+    validate(
+        {"timestamp": point_full_request["timestamp"], "price": point_full_request["price"]},
+        point_request_schema,
+        format_checker=FORMAT_CHECKER,
+    )
+    point_response = evaluate_point_payload(point_full_request)
     validate(point_response, point_response_schema, format_checker=FORMAT_CHECKER)
 
-    rows_request = _load_json(EXAMPLES / "batch_timeseries_rows.json")
+    rows_full_request = _load_json(EXAMPLES / "batch_timeseries_rows.json")
     rows_request_schema = _load_json(SCHEMAS / "evaluate_rows.request.v1.json")
     rows_response_schema = _load_json(SCHEMAS / "evaluate_rows.response.v1.json")
 
-    validate(rows_request, rows_request_schema, format_checker=FORMAT_CHECKER)
-    rows_response = evaluate_rows_payload(rows_request)
+    validate(rows_full_request["strategy"], strategy_request_schema, format_checker=FORMAT_CHECKER)
+    validate(
+        {"rows": rows_full_request["rows"]},
+        rows_request_schema,
+        format_checker=FORMAT_CHECKER,
+    )
+    rows_response = evaluate_rows_payload(rows_full_request)
     validate(rows_response, rows_response_schema, format_checker=FORMAT_CHECKER)
 
-    ranges_request = _load_json(EXAMPLES / "range_timeseries_rows.json")
+    ranges_full_request = _load_json(EXAMPLES / "range_timeseries_rows.json")
     ranges_request_schema = _load_json(SCHEMAS / "evaluate_rows_from_ranges.request.v1.json")
+    validate(
+        ranges_full_request["strategy"],
+        strategy_request_schema,
+        format_checker=FORMAT_CHECKER,
+    )
+    ranges_request = {
+        "price_start": ranges_full_request["price_start"],
+        "price_end": ranges_full_request["price_end"],
+        "price_steps": ranges_full_request["price_steps"],
+        "time_start": ranges_full_request["time_start"],
+        "time_end": ranges_full_request["time_end"],
+        "time_steps": ranges_full_request["time_steps"],
+        "include_price_breakpoints": ranges_full_request["include_price_breakpoints"],
+    }
     validate(ranges_request, ranges_request_schema, format_checker=FORMAT_CHECKER)
-    ranges_response = evaluate_rows_from_ranges_payload(ranges_request)
+    ranges_response = evaluate_rows_from_ranges_payload(ranges_full_request)
     validate(ranges_response, rows_response_schema, format_checker=FORMAT_CHECKER)
 
 
 def test_schema_rejects_invalid_market_mode() -> None:
-    schema = _load_json(SCHEMAS / "evaluate_point.request.v1.json")
-    request = _load_json(EXAMPLES / "bear_accumulate_point.json")
-    request["strategy"]["market_mode"] = "sideways"
+    schema = _load_json(SCHEMAS / "strategy_upsert.request.v1.json")
+    strategy_payload = _load_json(EXAMPLES / "bear_accumulate_point.json")["strategy"]
+    strategy_payload["market_mode"] = "sideways"
 
     with pytest.raises(ValidationError):
-        validate(request, schema, format_checker=FORMAT_CHECKER)
+        validate(strategy_payload, schema, format_checker=FORMAT_CHECKER)
 
 
 def test_schema_rejects_unknown_strategy_fields() -> None:
-    schema = _load_json(SCHEMAS / "evaluate_point.request.v1.json")
-    request = _load_json(EXAMPLES / "bear_accumulate_point.json")
-    request["strategy"]["unexpected_field"] = 0.2
+    schema = _load_json(SCHEMAS / "strategy_upsert.request.v1.json")
+    strategy_payload = _load_json(EXAMPLES / "bear_accumulate_point.json")["strategy"]
+    strategy_payload["unexpected_field"] = 0.2
 
     with pytest.raises(ValidationError):
-        validate(request, schema, format_checker=FORMAT_CHECKER)
+        validate(strategy_payload, schema, format_checker=FORMAT_CHECKER)
 
 
 def test_runtime_validation_rejects_overlapping_price_segments() -> None:
@@ -83,7 +107,7 @@ def test_runtime_validation_rejects_overlapping_price_segments() -> None:
 
 
 def test_runtime_and_schema_reject_all_zero_weights() -> None:
-    request_schema = _load_json(SCHEMAS / "evaluate_point.request.v1.json")
+    request_schema = _load_json(SCHEMAS / "strategy_upsert.request.v1.json")
     request = _load_json(EXAMPLES / "bear_accumulate_point.json")
     request["strategy"]["price_segments"] = [
         {"price_low": 40_000, "price_high": 50_000, "weight": 0},
@@ -91,15 +115,15 @@ def test_runtime_and_schema_reject_all_zero_weights() -> None:
     ]
 
     with pytest.raises(ValidationError):
-        validate(request, request_schema, format_checker=FORMAT_CHECKER)
+        validate(request["strategy"], request_schema, format_checker=FORMAT_CHECKER)
 
     with pytest.raises((ContractError, ValueError), match="total weight must be > 0"):
         evaluate_point_payload(request)
 
 
 def test_bull_example_matches_point_request_schema() -> None:
-    schema = _load_json(SCHEMAS / "evaluate_point.request.v1.json")
-    payload = _load_json(EXAMPLES / "bull_distribute_point.json")
+    schema = _load_json(SCHEMAS / "strategy_upsert.request.v1.json")
+    payload = _load_json(EXAMPLES / "bull_distribute_point.json")["strategy"]
     validate(payload, schema, format_checker=FORMAT_CHECKER)
 
 

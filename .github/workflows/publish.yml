@@ -1,0 +1,16 @@
+name: Publish (Legacy Lockstep Disabled)
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  fail-fast:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Lockstep release flow is disabled
+        run: |
+          echo "legacy lockstep release tags are disabled"
+          echo "use component tags: core-vX.Y.Z or cli-vX.Y.Z"
+          exit 1
