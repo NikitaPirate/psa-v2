@@ -90,6 +90,22 @@ p {
   border-right: 0;
 }
 
+.mode-toggle-link {
+  border: 0;
+  border-left: 1px solid #bbcad6;
+  border-radius: 0;
+  background: transparent;
+  padding: 8px 14px;
+  min-width: 92px;
+  color: var(--text);
+  text-decoration: none;
+  text-align: center;
+}
+
+.mode-toggle-link:hover {
+  background: #e9f3ff;
+}
+
 .mode-toggle button.active {
   background: var(--accent-soft);
   color: #0a3b9d;
@@ -346,6 +362,99 @@ button.danger {
   color: var(--muted);
 }
 
+.docs-shell {
+  max-width: 1080px;
+}
+
+.docs-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.docs-header h1 {
+  font-size: 1.24rem;
+}
+
+.docs-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.docs-language {
+  display: inline-flex;
+  border-radius: 8px;
+  border: 1px solid #bbcad6;
+  overflow: hidden;
+}
+
+.docs-language button {
+  border: 0;
+  border-right: 1px solid #bbcad6;
+  border-radius: 0;
+  background: #f5f9ff;
+  min-width: 56px;
+}
+
+.docs-language button:last-child {
+  border-right: 0;
+}
+
+.docs-language button.active {
+  background: var(--accent-soft);
+  color: #0a3b9d;
+  font-weight: 700;
+}
+
+.docs-toc ul,
+.docs-panel ul {
+  margin: 10px 0 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 6px;
+}
+
+.docs-toc a {
+  color: #0a4d9c;
+  text-decoration: none;
+}
+
+.docs-toc a:hover {
+  text-decoration: underline;
+}
+
+.docs-panel {
+  display: grid;
+  gap: 10px;
+}
+
+.docs-inline-copy {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.docs-inline-copy p {
+  flex: 1 1 420px;
+}
+
+.docs-json-block {
+  margin: 0;
+  border: 1px solid #cfdae4;
+  border-radius: 10px;
+  padding: 12px;
+  background: #fbfeff;
+  overflow: auto;
+  font-size: 0.84rem;
+  font-family: "IBM Plex Mono", "Menlo", monospace;
+}
+
 @media (max-width: 900px) {
   .segment-row,
   .segment-row.time {
@@ -362,5 +471,9 @@ button.danger {
 
   .mode-toggle button {
     width: 50%;
+  }
+
+  .docs-inline-copy {
+    align-items: flex-start;
   }
 }

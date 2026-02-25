@@ -41,6 +41,10 @@ const MIN_OBSERVATION_PRICE = 0.01;
 const nowIso = (): string => new Date().toISOString();
 const randomId = (): string =>
   `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+const initialModeFromLocation = (): Mode => {
+  const params = new URLSearchParams(window.location.search);
+  return params.get("mode") === "use" ? "use" : "create";
+};
 
 function sanitizeNumber(value: number, fallback = 0): number {
   if (!Number.isFinite(value)) {
@@ -89,7 +93,7 @@ function initialUsePoint(price: number): UsePointState {
 }
 
 export function App() {
-  const [mode, setMode] = useState<Mode>("create");
+  const [mode, setMode] = useState<Mode>(initialModeFromLocation);
   const [strategy, setStrategy] = useState<CanonicalStrategy>(buildDefaultStrategy);
 
   const bounds = useMemo(() => strategyPriceBounds(strategy), [strategy]);
@@ -393,6 +397,17 @@ export function App() {
     }
   };
 
+  const onModeChange = (nextMode: Mode) => {
+    setMode(nextMode);
+    const url = new URL(window.location.href);
+    if (nextMode === "use") {
+      url.searchParams.set("mode", "use");
+    } else {
+      url.searchParams.delete("mode");
+    }
+    window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
+  };
+
   return (
     <main className="app-shell">
       <header className="topbar panel">
@@ -405,7 +420,7 @@ export function App() {
               role="tab"
               aria-selected={mode === "create"}
               className={mode === "create" ? "active" : ""}
-              onClick={() => setMode("create")}
+              onClick={() => onModeChange("create")}
             >
               Create
             </button>
@@ -414,10 +429,13 @@ export function App() {
               role="tab"
               aria-selected={mode === "use"}
               className={mode === "use" ? "active" : ""}
-              onClick={() => setMode("use")}
+              onClick={() => onModeChange("use")}
             >
               Use
             </button>
+            <a className="mode-toggle-link" href="/docs/en">
+              Docs
+            </a>
           </div>
 
           <label className="chart-time-input">

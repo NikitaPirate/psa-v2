@@ -11,6 +11,7 @@ vi.mock("plotly.js-dist-min", () => ({
 
 describe("App", () => {
   beforeEach(() => {
+    window.history.replaceState({}, "", "/");
     vi.stubGlobal(
       "fetch",
       vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -75,6 +76,7 @@ describe("App", () => {
   });
 
   afterEach(() => {
+    window.history.replaceState({}, "", "/");
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
   });

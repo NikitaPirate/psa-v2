@@ -116,6 +116,8 @@ What it does:
   - evaluate `now` and custom point (`timestamp`, `price`);
   - line chart: `Price vs Share (without time modifier)`;
   - heatmap + 3D only when `time_segments` are present.
+- Docs mode:
+  - isolated docs page at `/docs/en` and `/docs/ru` (main app UI remains English).
 - API-first chart/evaluation flow:
   - `POST /v1/evaluate/point`
   - `POST /v1/evaluate/rows`
