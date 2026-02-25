@@ -31,7 +31,7 @@ API:
 - `api/src/psa_api/errors.py` - JSON error envelope mapping.
 
 Web:
-- `web/src/App.tsx` - transfer/evaluation interaction entrypoint.
+- `web/src/App.tsx` - `Create / Use` interaction entrypoint.
 - `web/src/main.tsx` - React bootstrap.
 - `web/src/styles.css` - local UI styling.
 

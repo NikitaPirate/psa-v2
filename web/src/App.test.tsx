@@ -1,47 +1,77 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
 import { App } from "./App";
 
-const VALID_STRATEGY_JSON = JSON.stringify(
-  {
-    market_mode: "bear",
-    price_segments: [
-      { price_low: 30000, price_high: 40000, weight: 40 },
-      { price_low: 40000, price_high: 50000, weight: 60 },
-    ],
-    time_segments: [],
+vi.mock("plotly.js-dist-min", () => ({
+  default: {
+    react: vi.fn(),
+    purge: vi.fn(),
   },
-  null,
-  2,
-);
+}));
 
 describe("App", () => {
   beforeEach(() => {
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockResolvedValue({
-        ok: true,
-        status: 200,
-        json: async () => ({
-          row: {
-            timestamp: "2026-01-01T00:00:00Z",
-            price: 40000,
-            time_k: 1,
-            virtual_price: 40000,
-            base_share: 0.333333,
-            target_share: 0.444444,
-          },
-        }),
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input);
+        const payload = init?.body ? JSON.parse(String(init.body)) : {};
+
+        if (url.endsWith("/v1/evaluate/rows")) {
+          const rows = Array.isArray(payload.rows) ? payload.rows : [];
+          return {
+            ok: true,
+            status: 200,
+            json: async () => ({
+              rows: rows.map((row: { timestamp: string; price: number }) => ({
+                timestamp: row.timestamp,
+                price: row.price,
+                time_k: 1,
+                virtual_price: row.price,
+                base_share: 0.25,
+                target_share: 0.5,
+              })),
+            }),
+          };
+        }
+
+        if (url.endsWith("/v1/evaluate/rows-from-ranges")) {
+          return {
+            ok: true,
+            status: 200,
+            json: async () => ({
+              rows: [],
+            }),
+          };
+        }
+
+        if (url.endsWith("/v1/evaluate/point")) {
+          const price = Number(payload.price ?? 50000);
+          const timestamp = String(payload.timestamp ?? "2026-01-01T00:00:00Z");
+
+          return {
+            ok: true,
+            status: 200,
+            json: async () => ({
+              row: {
+                timestamp,
+                price,
+                time_k: 1,
+                virtual_price: price,
+                base_share: 0.33,
+                target_share: 0.44,
+              },
+            }),
+          };
+        }
+
+        return {
+          ok: false,
+          status: 404,
+          json: async () => ({ error: { message: "Not found" } }),
+        };
       }),
     );
-
-    const clipboard = {
-      writeText: vi.fn().mockResolvedValue(undefined),
-    };
-    Object.defineProperty(globalThis.navigator, "clipboard", {
-      value: clipboard,
-      configurable: true,
-    });
   });
 
   afterEach(() => {
@@ -49,56 +79,69 @@ describe("App", () => {
     vi.restoreAllMocks();
   });
 
-  it("parses valid strategy payload", async () => {
+  it("switches between Create and Use modes", () => {
     render(<App />);
 
-    fireEvent.change(screen.getByLabelText(/strategy json/i), {
-      target: { value: VALID_STRATEGY_JSON },
-    });
-    fireEvent.click(screen.getByRole("button", { name: "Parse" }));
-
-    expect(screen.getByText("Parsed successfully.")).toBeInTheDocument();
-    await waitFor(() => {
-      expect(screen.getByText(/target_share/i)).toBeInTheDocument();
-    });
+    expect(screen.getByRole("heading", { name: "Create" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("tab", { name: "Use" }));
+    expect(screen.getByRole("heading", { name: "Use" })).toBeInTheDocument();
   });
 
-  it("shows error for invalid JSON", () => {
+  it("applies JSON into form state", async () => {
     render(<App />);
 
-    fireEvent.change(screen.getByLabelText(/strategy json/i), {
-      target: { value: "{" },
+    const textarea = screen.getByLabelText(/strategy json/i);
+    fireEvent.change(textarea, {
+      target: {
+        value: JSON.stringify(
+          {
+            market_mode: "bull",
+            price_segments: [{ price_low: 10000, price_high: 20000, weight: 1 }],
+            time_segments: [],
+          },
+          null,
+          2,
+        ),
+      },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Parse" }));
+
+    fireEvent.click(screen.getByRole("button", { name: "Apply JSON" }));
+
+    await waitFor(() => {
+      expect(screen.getByText("JSON applied.")).toBeInTheDocument();
+    });
+
+    expect(screen.getByDisplayValue("bull")).toBeInTheDocument();
+  });
+
+  it("shows JSON parse error without breaking form", () => {
+    render(<App />);
+
+    const textarea = screen.getByLabelText(/strategy json/i);
+    fireEvent.change(textarea, { target: { value: "{" } });
+
+    fireEvent.click(screen.getByRole("button", { name: "Apply JSON" }));
 
     expect(screen.getByText("Input is not valid JSON.")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("bear")).toBeInTheDocument();
   });
 
-  it("uploads file content into textarea exactly", async () => {
+  it("evaluates now point in Use mode", async () => {
     render(<App />);
 
-    const input = screen.getByLabelText(/upload \.json/i) as HTMLInputElement;
-    const file = new File([VALID_STRATEGY_JSON], "strategy.json", { type: "application/json" });
-
-    fireEvent.change(input, { target: { files: [file] } });
+    fireEvent.click(screen.getByRole("tab", { name: "Use" }));
+    fireEvent.click(screen.getByRole("button", { name: "Evaluate now" }));
 
     await waitFor(() => {
-      expect(screen.getByLabelText(/strategy json/i)).toHaveValue(VALID_STRATEGY_JSON);
+      expect(
+        screen.getByText(/share with time modifier:\s*44\.00%/i),
+      ).toBeInTheDocument();
     });
   });
 
-  it("maps API response and shows target_share", async () => {
+  it("shows no time segments status", () => {
     render(<App />);
 
-    fireEvent.change(screen.getByLabelText(/strategy json/i), {
-      target: { value: VALID_STRATEGY_JSON },
-    });
-    fireEvent.click(screen.getByRole("button", { name: "Parse" }));
-
-    await waitFor(() => {
-      expect(screen.getByText(/0\.444444/)).toBeInTheDocument();
-    });
-
-    expect(fetch).toHaveBeenCalled();
+    expect(screen.getAllByText("No time segments").length).toBeGreaterThan(0);
   });
 });

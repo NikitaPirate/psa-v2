@@ -1,314 +1,653 @@
-import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
+import { ChangeEvent, useEffect, useMemo, useState } from "react";
+import { evaluatePoint, evaluateRows, evaluateRowsFromRanges } from "./lib/api";
+import {
+  buildDefaultStrategy,
+  cloneStrategy,
+  fromLocalDateTimeInput,
+  parseCanonicalStrategy,
+  strategyPriceBounds,
+  stringifyCanonicalStrategy,
+  toLocalDateTimeInput,
+  validateCanonicalStrategy,
+} from "./lib/strategy";
+import {
+  buildHeatmapSurfaceData,
+  buildLinePoints,
+  buildObservationRows,
+  buildPriceGrid,
+  emptyChartBundle,
+} from "./lib/charts";
+import {
+  CanonicalStrategy,
+  UsePointState,
+} from "./lib/types";
+import {
+  normalizeWeightsToHundred,
+  rebalanceWeightsAfterEdit,
+  rebalanceWeightsAfterRemoval,
+  sumWeights,
+  weightTotalTarget,
+} from "./lib/weights";
+import { CreateScreen } from "./components/CreateScreen";
+import { UseScreen } from "./components/UseScreen";
 
-type PriceSegment = {
-  price_low: number;
-  price_high: number;
-  weight: number;
-};
+type Mode = "create" | "use";
 
-type StrategyPayload = {
-  market_mode: "bear" | "bull";
-  price_segments: PriceSegment[];
-  time_segments?: Array<Record<string, unknown>>;
-};
+const CHART_DEBOUNCE_MS = 320;
+const CHART_PRICE_STEPS = 31;
+const CHART_TIME_STEPS = 24;
 
-type EvaluatePointResponse = {
-  row: {
-    timestamp: string;
-    price: number;
-    time_k: number;
-    virtual_price: number;
-    base_share: number;
-    target_share: number;
+const nowIso = (): string => new Date().toISOString();
+const randomId = (): string =>
+  `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+
+function sanitizeNumber(value: number, fallback = 0): number {
+  if (!Number.isFinite(value)) {
+    return fallback;
+  }
+  return value;
+}
+
+function maxTimeSegmentEnd(strategy: CanonicalStrategy): string | null {
+  if (strategy.time_segments.length === 0) {
+    return null;
+  }
+
+  const sorted = [...strategy.time_segments].sort(
+    (left, right) => Date.parse(left.end_ts) - Date.parse(right.end_ts),
+  );
+
+  return sorted[sorted.length - 1].end_ts;
+}
+
+function downloadJson(filename: string, content: string): void {
+  const blob = new Blob([content], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  document.body.append(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(url);
+}
+
+function initialUsePoint(price: number): UsePointState {
+  return {
+    timestamp: nowIso(),
+    price,
+    result: null,
+    error: "",
+    isLoading: false,
   };
-};
-
-const EVALUATE_POINT_API_URL = "/v1/evaluate/point";
-const DEFAULT_PRICE_MIN = 1;
-const DEFAULT_PRICE_MAX = 100_000;
-const DEFAULT_PRICE = 50_000;
-// POC only: fixed timestamp to minimize scope and prove JSON transfer + evaluate flow.
-const POC_TIMESTAMP = "2026-01-01T00:00:00Z";
-
-function isFiniteNumber(value: unknown): value is number {
-  return typeof value === "number" && Number.isFinite(value);
-}
-
-function parseStrategyPayload(rawText: string): StrategyPayload {
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(rawText);
-  } catch {
-    throw new Error("Input is not valid JSON.");
-  }
-
-  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-    throw new Error("Strategy JSON must be an object.");
-  }
-
-  const payload = parsed as Record<string, unknown>;
-  const marketMode = payload.market_mode;
-  if (marketMode !== "bear" && marketMode !== "bull") {
-    throw new Error("market_mode must be 'bear' or 'bull'.");
-  }
-
-  const priceSegments = payload.price_segments;
-  if (!Array.isArray(priceSegments) || priceSegments.length === 0) {
-    throw new Error("price_segments must be a non-empty array.");
-  }
-
-  for (let idx = 0; idx < priceSegments.length; idx += 1) {
-    const segment = priceSegments[idx];
-    if (!segment || typeof segment !== "object" || Array.isArray(segment)) {
-      throw new Error(`price_segments[${idx}] must be an object.`);
-    }
-    const row = segment as Record<string, unknown>;
-    if (!isFiniteNumber(row.price_low) || !isFiniteNumber(row.price_high)) {
-      throw new Error(`price_segments[${idx}] must include numeric price_low/price_high.`);
-    }
-    if (!isFiniteNumber(row.weight)) {
-      throw new Error(`price_segments[${idx}] must include numeric weight.`);
-    }
-  }
-
-  return payload as unknown as StrategyPayload;
-}
-
-function getPriceBounds(strategy: StrategyPayload): { min: number; max: number } {
-  const values = strategy.price_segments.flatMap((segment) => [segment.price_low, segment.price_high]);
-  const min = Math.min(...values);
-  const max = Math.max(...values);
-  if (!Number.isFinite(min) || !Number.isFinite(max) || min >= max) {
-    return { min: DEFAULT_PRICE_MIN, max: DEFAULT_PRICE_MAX };
-  }
-  return { min, max };
-}
-
-function getErrorMessage(error: unknown): string {
-  if (error instanceof Error) {
-    return error.message;
-  }
-  return "Unexpected error.";
-}
-
-function formatShare(value: number): string {
-  return value.toFixed(6);
-}
-
-function readFileAsText(file: File): Promise<string> {
-  if (typeof file.text === "function") {
-    return file.text();
-  }
-
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result ?? ""));
-    reader.onerror = () => reject(new Error("Failed to read file."));
-    reader.readAsText(file);
-  });
 }
 
 export function App() {
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [jsonText, setJsonText] = useState<string>("");
-  const [strategy, setStrategy] = useState<StrategyPayload | null>(null);
-  const [parseStatus, setParseStatus] = useState<string>("");
-  const [parseError, setParseError] = useState<string>("");
-  const [priceRange, setPriceRange] = useState({ min: DEFAULT_PRICE_MIN, max: DEFAULT_PRICE_MAX });
-  const [price, setPrice] = useState<number>(DEFAULT_PRICE);
-  const [isEvaluating, setIsEvaluating] = useState(false);
-  const [evalError, setEvalError] = useState("");
-  const [result, setResult] = useState<EvaluatePointResponse["row"] | null>(null);
+  const [mode, setMode] = useState<Mode>("create");
+  const [strategy, setStrategy] = useState<CanonicalStrategy>(buildDefaultStrategy);
 
-  const canEvaluate = strategy !== null;
+  const bounds = useMemo(() => strategyPriceBounds(strategy), [strategy]);
+
+  const [jsonText, setJsonText] = useState<string>(() =>
+    stringifyCanonicalStrategy(buildDefaultStrategy()),
+  );
+  const [jsonStatus, setJsonStatus] = useState("");
+  const [jsonError, setJsonError] = useState("");
+  const [lockedPriceSegmentIds, setLockedPriceSegmentIds] = useState<string[]>([]);
+  const [priceSegmentIds, setPriceSegmentIds] = useState<string[]>(() =>
+    buildDefaultStrategy().price_segments.map(() => randomId()),
+  );
+
+  const [chartTimestamp, setChartTimestamp] = useState<string>(() => nowIso());
+
+  const [chartLoading, setChartLoading] = useState(false);
+  const [chartError, setChartError] = useState("");
+  const [charts, setCharts] = useState(emptyChartBundle);
+
+  const [nowPriceInput, setNowPriceInput] = useState<number>(() =>
+    Math.round((bounds.min + bounds.max) / 2),
+  );
+  const [customTimestampInput, setCustomTimestampInput] = useState<string>(() => nowIso());
+  const [customPriceInput, setCustomPriceInput] = useState<number>(() =>
+    Math.round((bounds.min + bounds.max) / 2),
+  );
+
+  const [nowPoint, setNowPoint] = useState<UsePointState>(() => initialUsePoint(nowPriceInput));
+  const [customPoint, setCustomPoint] = useState<UsePointState>(() => ({
+    ...initialUsePoint(customPriceInput),
+    timestamp: customTimestampInput,
+  }));
+
+  const validationIssues = useMemo(() => validateCanonicalStrategy(strategy), [strategy]);
+  const weightTarget = weightTotalTarget();
+  const priceWeightRows = useMemo(
+    () =>
+      strategy.price_segments.map((row, index) => ({
+        id: priceSegmentIds[index] ?? `missing-${index}`,
+        weight: row.weight,
+      })),
+    [priceSegmentIds, strategy.price_segments],
+  );
+  const priceWeightTotal = useMemo(() => sumWeights(priceWeightRows), [priceWeightRows]);
+  const lockedPriceSegmentIdSet = useMemo(
+    () => new Set(lockedPriceSegmentIds),
+    [lockedPriceSegmentIds],
+  );
 
   useEffect(() => {
-    if (!strategy) {
-      setResult(null);
-      return;
-    }
+    setJsonText(stringifyCanonicalStrategy(strategy));
+  }, [strategy]);
 
-    const controller = new AbortController();
-    const run = async () => {
-      setIsEvaluating(true);
-      setEvalError("");
+  useEffect(() => {
+    setPriceSegmentIds((current) => {
+      const next = strategy.price_segments.map((_, idx) => current[idx] ?? randomId());
+      return next;
+    });
+  }, [strategy.price_segments.length]);
 
-      try {
-        const response = await fetch(EVALUATE_POINT_API_URL, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            strategy,
-            timestamp: POC_TIMESTAMP,
-            price,
-          }),
-          signal: controller.signal,
-        });
+  useEffect(() => {
+    const activeIds = new Set(priceSegmentIds);
+    setLockedPriceSegmentIds((current) => current.filter((id) => activeIds.has(id)));
+  }, [priceSegmentIds]);
 
-        const body = (await response.json()) as EvaluatePointResponse | { error?: { message?: string } };
-        if (!response.ok) {
-          const message =
-            typeof body === "object" && body && "error" in body && body.error?.message
-              ? body.error.message
-              : `API request failed with status ${response.status}.`;
-          throw new Error(message);
-        }
+  useEffect(() => {
+    const nextMid = Math.round((bounds.min + bounds.max) / 2);
 
-        if (!("row" in body)) {
-          throw new Error("API response does not contain row.");
-        }
+    setNowPriceInput((current) =>
+      Math.min(Math.max(current, bounds.min), bounds.max) || nextMid,
+    );
+    setCustomPriceInput((current) =>
+      Math.min(Math.max(current, bounds.min), bounds.max) || nextMid,
+    );
+  }, [bounds.max, bounds.min]);
 
-        setResult(body.row);
-      } catch (error) {
-        if (!controller.signal.aborted) {
-          setResult(null);
-          setEvalError(getErrorMessage(error));
-        }
-      } finally {
-        if (!controller.signal.aborted) {
-          setIsEvaluating(false);
-        }
+  useEffect(() => {
+    const abort = new AbortController();
+    const timer = window.setTimeout(() => {
+      if (validationIssues.length > 0) {
+        setChartLoading(false);
+        setChartError(validationIssues[0]);
+        setCharts(emptyChartBundle());
+        return;
       }
+
+      const parsedTimestamp = Date.parse(chartTimestamp);
+      if (!Number.isFinite(parsedTimestamp)) {
+        setChartLoading(false);
+        setChartError("Chart timestamp is invalid.");
+        setCharts(emptyChartBundle());
+        return;
+      }
+
+      const run = async () => {
+        setChartLoading(true);
+        setChartError("");
+
+        try {
+          const linePrices = buildPriceGrid(strategy.price_segments, 60);
+          const lineRows = buildObservationRows(chartTimestamp, linePrices);
+
+          const lineResponse = await evaluateRows(strategy, lineRows, abort.signal);
+          const linePoints = buildLinePoints(lineResponse.rows);
+
+          let heatmapSurface = null;
+          let heatmapStatus = "No time segments";
+
+          if (strategy.time_segments.length > 0) {
+            const timeStart = nowIso();
+            const timeEnd = maxTimeSegmentEnd(strategy);
+
+            if (!timeEnd || Date.parse(timeEnd) <= Date.parse(timeStart)) {
+              heatmapStatus = "No future time segments";
+            } else {
+              const rangeResponse = await evaluateRowsFromRanges(
+                strategy,
+                {
+                  price_start: bounds.max,
+                  price_end: bounds.min,
+                  price_steps: CHART_PRICE_STEPS,
+                  time_start: timeStart,
+                  time_end: timeEnd,
+                  time_steps: CHART_TIME_STEPS,
+                  include_price_breakpoints: true,
+                },
+                abort.signal,
+              );
+              heatmapSurface = buildHeatmapSurfaceData(rangeResponse.rows, timeStart);
+              heatmapStatus = "";
+            }
+          }
+
+          if (!abort.signal.aborted) {
+            setCharts({
+              line_points: linePoints,
+              heatmap_surface: heatmapSurface,
+              heatmap_status: heatmapStatus,
+            });
+          }
+        } catch (error) {
+          if (!abort.signal.aborted) {
+            setCharts(emptyChartBundle());
+            setChartError(error instanceof Error ? error.message : "Chart request failed.");
+          }
+        } finally {
+          if (!abort.signal.aborted) {
+            setChartLoading(false);
+          }
+        }
+      };
+
+      void run();
+    }, CHART_DEBOUNCE_MS);
+
+    return () => {
+      abort.abort();
+      window.clearTimeout(timer);
     };
+  }, [
+    bounds.max,
+    bounds.min,
+    chartTimestamp,
+    strategy,
+    validationIssues,
+  ]);
 
-    void run();
-    return () => controller.abort();
-  }, [price, strategy]);
+  const updateStrategy = (updater: (current: CanonicalStrategy) => CanonicalStrategy) => {
+    setStrategy((current) => updater(cloneStrategy(current)));
+    setJsonStatus("");
+    setJsonError("");
+  };
 
-  const rangeLabel = useMemo(() => `${priceRange.min} .. ${priceRange.max}`, [priceRange]);
-
-  function handleParse() {
+  const onApplyJson = () => {
     try {
-      const parsedStrategy = parseStrategyPayload(jsonText);
-      const bounds = getPriceBounds(parsedStrategy);
-      const nextPrice = Math.min(Math.max(price, bounds.min), bounds.max);
-
-      setStrategy(parsedStrategy);
-      setPriceRange(bounds);
-      setPrice(nextPrice);
-      setParseError("");
-      setParseStatus("Parsed successfully.");
+      const parsed = parseCanonicalStrategy(jsonText);
+      const normalizedRows = normalizeWeightsToHundred(
+        parsed.price_segments.map((row, index) => ({
+          id: `parsed-${index}`,
+          weight: row.weight,
+        })),
+      );
+      const normalizedStrategy: CanonicalStrategy = {
+        ...parsed,
+        price_segments: parsed.price_segments.map((row, index) => ({
+          ...row,
+          weight: normalizedRows[index].weight,
+        })),
+      };
+      setStrategy(normalizedStrategy);
+      setLockedPriceSegmentIds([]);
+      setPriceSegmentIds(normalizedStrategy.price_segments.map(() => randomId()));
+      setJsonError("");
+      setJsonStatus("JSON applied.");
     } catch (error) {
-      setStrategy(null);
-      setParseStatus("");
-      setResult(null);
-      setEvalError("");
-      setPriceRange({ min: DEFAULT_PRICE_MIN, max: DEFAULT_PRICE_MAX });
-      setParseError(getErrorMessage(error));
+      setJsonStatus("");
+      setJsonError(error instanceof Error ? error.message : "Failed to apply JSON.");
     }
-  }
+  };
 
-  async function handleCopy() {
-    try {
-      await navigator.clipboard.writeText(jsonText);
-      setParseError("");
-      setParseStatus("JSON copied to clipboard.");
-    } catch {
-      setParseStatus("");
-      setParseError("Clipboard copy failed.");
-    }
-  }
+  const onSaveJson = () => {
+    downloadJson("strategy.json", stringifyCanonicalStrategy(strategy));
+    setJsonError("");
+    setJsonStatus("JSON saved.");
+  };
 
-  function handleDownload() {
-    const blob = new Blob([jsonText], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement("a");
-    anchor.href = url;
-    anchor.download = "strategy.json";
-    document.body.append(anchor);
-    anchor.click();
-    anchor.remove();
-    URL.revokeObjectURL(url);
-  }
-
-  async function handleFileUpload(event: ChangeEvent<HTMLInputElement>) {
+  const onUploadJson = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) {
       return;
     }
 
-    const text = await readFileAsText(file);
-    setJsonText(text);
-    setParseStatus("File loaded into JSON field.");
-    setParseError("");
-
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
+    try {
+      const text = await file.text();
+      setJsonText(text);
+      setJsonError("");
+      setJsonStatus("File loaded.");
+    } catch {
+      setJsonStatus("");
+      setJsonError("File read failed.");
     }
-  }
+
+    event.target.value = "";
+  };
+
+  const evaluateNow = async () => {
+    if (validationIssues.length > 0) {
+      setNowPoint((current) => ({
+        ...current,
+        error: validationIssues[0],
+        isLoading: false,
+      }));
+      return;
+    }
+
+    const timestamp = nowIso();
+    const price = sanitizeNumber(nowPriceInput, bounds.min);
+    setNowPoint((current) => ({
+      ...current,
+      timestamp,
+      price,
+      error: "",
+      isLoading: true,
+    }));
+
+    try {
+      const response = await evaluatePoint(strategy, timestamp, price);
+      setNowPoint({
+        timestamp,
+        price,
+        result: response.row,
+        error: "",
+        isLoading: false,
+      });
+    } catch (error) {
+      setNowPoint((current) => ({
+        ...current,
+        error: error instanceof Error ? error.message : "Point evaluation failed.",
+        isLoading: false,
+      }));
+    }
+  };
+
+  const evaluateCustom = async () => {
+    if (validationIssues.length > 0) {
+      setCustomPoint((current) => ({
+        ...current,
+        error: validationIssues[0],
+        isLoading: false,
+      }));
+      return;
+    }
+
+    const timestamp = customTimestampInput;
+    const price = sanitizeNumber(customPriceInput, bounds.min);
+
+    setCustomPoint((current) => ({
+      ...current,
+      timestamp,
+      price,
+      error: "",
+      isLoading: true,
+    }));
+
+    try {
+      const response = await evaluatePoint(strategy, timestamp, price);
+      setCustomPoint({
+        timestamp,
+        price,
+        result: response.row,
+        error: "",
+        isLoading: false,
+      });
+    } catch (error) {
+      setCustomPoint((current) => ({
+        ...current,
+        error: error instanceof Error ? error.message : "Point evaluation failed.",
+        isLoading: false,
+      }));
+    }
+  };
 
   return (
-    <main>
-      <h1>PSA Transfer &amp; Evaluate POC</h1>
-      <p>
-        One canonical strategy JSON for web/agent/cli. Paste or upload strategy payload, parse it,
-        then move price slider to evaluate <code>target_share</code>.
-      </p>
+    <main className="app-shell">
+      <header className="topbar panel">
+        <h1>PSA Web</h1>
 
-      <section className="card">
-        <label htmlFor="strategy-json">Strategy JSON (canonical payload)</label>
-        <textarea
-          id="strategy-json"
-          value={jsonText}
-          onChange={(event) => setJsonText(event.target.value)}
-          placeholder='{"market_mode":"bear","price_segments":[{"price_low":30000,"price_high":40000,"weight":1}]}'
-        />
+        <div className="topbar-actions">
+          <div className="mode-toggle" role="tablist" aria-label="Screen mode">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={mode === "create"}
+              className={mode === "create" ? "active" : ""}
+              onClick={() => setMode("create")}
+            >
+              Create
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={mode === "use"}
+              className={mode === "use" ? "active" : ""}
+              onClick={() => setMode("use")}
+            >
+              Use
+            </button>
+          </div>
 
-        <div className="controls">
-          <button type="button" onClick={handleParse}>
-            Parse
-          </button>
-          <button type="button" onClick={() => void handleCopy()}>
-            Copy
-          </button>
-          <button type="button" onClick={handleDownload}>
-            Download .json
-          </button>
-          <label className="button-label" htmlFor="upload-json">
-            Upload .json
+          <label className="chart-time-input">
+            Chart time
             <input
-              id="upload-json"
-              ref={fileInputRef}
-              type="file"
-              accept=".json,application/json"
-              onChange={(event) => void handleFileUpload(event)}
+              type="datetime-local"
+              value={toLocalDateTimeInput(chartTimestamp)}
+              onChange={(event) =>
+                setChartTimestamp(fromLocalDateTimeInput(event.target.value))
+              }
             />
           </label>
         </div>
+      </header>
 
-        <div className={parseError ? "status error" : "status ok"}>
-          {parseError || parseStatus}
-        </div>
+      {mode === "create" ? (
+        <CreateScreen
+          strategy={strategy}
+          priceSegmentIds={priceSegmentIds}
+          lockedPriceSegmentIdSet={lockedPriceSegmentIdSet}
+          priceWeightTotal={priceWeightTotal}
+          weightTarget={weightTarget}
+          jsonText={jsonText}
+          jsonStatus={jsonStatus}
+          jsonError={jsonError}
+          validationIssues={validationIssues}
+          charts={charts}
+          chartLoading={chartLoading}
+          chartError={chartError}
+          onJsonTextChange={(value) => {
+            setJsonText(value);
+            if (jsonStatus) {
+              setJsonStatus("");
+            }
+            if (jsonError) {
+              setJsonError("");
+            }
+          }}
+          onApplyJson={onApplyJson}
+          onSaveJson={onSaveJson}
+          onUploadJson={(event) => void onUploadJson(event)}
+          onMarketModeChange={(marketMode) =>
+            updateStrategy((current) => ({
+              ...current,
+              market_mode: marketMode,
+            }))
+          }
+          onPriceSegmentChange={(index, field, value) =>
+            updateStrategy((current) => {
+              if (field !== "weight") {
+                return {
+                  ...current,
+                  price_segments: current.price_segments.map((row, rowIndex) =>
+                    rowIndex === index
+                      ? {
+                          ...row,
+                          [field]: sanitizeNumber(value),
+                        }
+                      : row,
+                  ),
+                };
+              }
 
-        <div className="slider-wrap">
-          <div className="meta">Price range: {rangeLabel}</div>
-          <div className="slider-row">
-            <input
-              type="range"
-              min={priceRange.min}
-              max={priceRange.max}
-              step="1"
-              value={price}
-              disabled={!canEvaluate}
-              onChange={(event) => setPrice(Number(event.target.value))}
-            />
-            <output>{price}</output>
-          </div>
-        </div>
+              const rows = current.price_segments.map((row, rowIndex) => ({
+                id: priceSegmentIds[rowIndex] ?? `missing-${rowIndex}`,
+                weight: row.weight,
+              }));
+              const rebalanced = rebalanceWeightsAfterEdit(
+                rows,
+                rows[index]?.id ?? "",
+                sanitizeNumber(value),
+                lockedPriceSegmentIds,
+              );
 
-        {isEvaluating && <div className="meta">Evaluating...</div>}
-        {evalError && <div className="status error">{evalError}</div>}
+              return {
+                ...current,
+                price_segments: current.price_segments.map((row, rowIndex) => ({
+                  ...row,
+                  weight: rebalanced[rowIndex]?.weight ?? row.weight,
+                })),
+              };
+            })
+          }
+          onAddPriceSegment={() =>
+            updateStrategy((current) => {
+              const currentMin = Math.min(
+                ...current.price_segments.map((row) => Math.min(row.price_low, row.price_high)),
+              );
+              const nextHigh = Number.isFinite(currentMin) ? currentMin : bounds.max;
+              const nextLow = Math.max(1, Math.round(nextHigh * 0.8));
 
-        {result && (
-          <div className="result">
-            <div>
-              target_share: <strong>{formatShare(result.target_share)}</strong>
-            </div>
-            <div>base_share: {formatShare(result.base_share)}</div>
-            <div className="meta">timestamp: {POC_TIMESTAMP}</div>
-          </div>
-        )}
-      </section>
+              const nextRows = normalizeWeightsToHundred(
+                current.price_segments
+                  .map((row, rowIndex) => ({
+                    id: priceSegmentIds[rowIndex] ?? `missing-${rowIndex}`,
+                    weight: row.weight,
+                  }))
+                  .concat([{ id: "new-segment", weight: 0 }]),
+              );
+
+              const nextSegments = [
+                ...current.price_segments,
+                {
+                  price_low: Math.min(nextLow, nextHigh - 1),
+                  price_high: Math.max(nextHigh, nextLow + 1),
+                  weight: 0,
+                },
+              ];
+
+              return {
+                ...current,
+                price_segments: nextSegments.map((row, rowIndex) => ({
+                  ...row,
+                  weight: nextRows[rowIndex]?.weight ?? row.weight,
+                })),
+              };
+            })
+          }
+          onRemovePriceSegment={(index) =>
+            (() => {
+              const removedId = priceSegmentIds[index];
+              setPriceSegmentIds((currentIds) =>
+                currentIds.filter((_, rowIndex) => rowIndex !== index),
+              );
+              setLockedPriceSegmentIds((currentIds) =>
+                currentIds.filter((id) => id !== removedId),
+              );
+
+              updateStrategy((current) => {
+                const rows = current.price_segments.map((row, rowIndex) => ({
+                  id: priceSegmentIds[rowIndex] ?? `missing-${rowIndex}`,
+                  weight: row.weight,
+                }));
+                const nextRows = removedId
+                  ? rebalanceWeightsAfterRemoval(rows, removedId)
+                  : rows.slice(0, -1);
+
+                const nextSegments = current.price_segments
+                  .filter((_, rowIndex) => rowIndex !== index)
+                  .map((row, rowIndex) => ({
+                    ...row,
+                    weight: nextRows[rowIndex]?.weight ?? row.weight,
+                  }));
+
+                return {
+                  ...current,
+                  price_segments: nextSegments,
+                };
+              });
+            })()
+          }
+          onTogglePriceSegmentLock={(segmentId) =>
+            setLockedPriceSegmentIds((current) =>
+              current.includes(segmentId)
+                ? current.filter((id) => id !== segmentId)
+                : [...current, segmentId],
+            )
+          }
+          onUnlockAllPriceSegmentLocks={() => setLockedPriceSegmentIds([])}
+          onNormalizePriceSegmentWeights={() =>
+            updateStrategy((current) => {
+              const rows = current.price_segments.map((row, rowIndex) => ({
+                id: priceSegmentIds[rowIndex] ?? `missing-${rowIndex}`,
+                weight: row.weight,
+              }));
+              const normalized = normalizeWeightsToHundred(rows);
+
+              return {
+                ...current,
+                price_segments: current.price_segments.map((row, rowIndex) => ({
+                  ...row,
+                  weight: normalized[rowIndex]?.weight ?? row.weight,
+                })),
+              };
+            })
+          }
+          onTimeSegmentChange={(index, field, value) =>
+            updateStrategy((current) => ({
+              ...current,
+              time_segments: current.time_segments.map((row, rowIndex) =>
+                rowIndex === index
+                  ? {
+                      ...row,
+                      [field]:
+                        typeof value === "number" ? sanitizeNumber(value) : value,
+                    }
+                  : row,
+              ),
+            }))
+          }
+          onAddTimeSegment={() =>
+            updateStrategy((current) => {
+              const startTs = nowIso();
+              const endTs = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+              return {
+                ...current,
+                time_segments: [
+                  ...current.time_segments,
+                  {
+                    start_ts: startTs,
+                    end_ts: endTs,
+                    k_start: 1,
+                    k_end: 1.2,
+                  },
+                ],
+              };
+            })
+          }
+          onRemoveTimeSegment={(index) =>
+            updateStrategy((current) => ({
+              ...current,
+              time_segments: current.time_segments.filter((_, rowIndex) => rowIndex !== index),
+            }))
+          }
+        />
+      ) : (
+        <UseScreen
+          marketMode={strategy.market_mode}
+          nowPoint={nowPoint}
+          customPoint={customPoint}
+          nowPriceInput={nowPriceInput}
+          customPriceInput={customPriceInput}
+          customTimestampInput={customTimestampInput}
+          validationIssues={validationIssues}
+          charts={charts}
+          chartLoading={chartLoading}
+          chartError={chartError}
+          onNowPriceChange={(value) => setNowPriceInput(sanitizeNumber(value, bounds.min))}
+          onCustomPriceChange={(value) =>
+            setCustomPriceInput(sanitizeNumber(value, bounds.min))
+          }
+          onCustomTimestampChange={(value) => setCustomTimestampInput(value)}
+          onEvaluateNow={() => void evaluateNow()}
+          onEvaluateCustom={() => void evaluateCustom()}
+        />
+      )}
     </main>
   );
 }

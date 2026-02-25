@@ -5,7 +5,7 @@ Current implemented modules: deterministic computation core plus AI-first statef
 
 ## Scope (Phase 0)
 
-- Monorepo foundation with implemented core module (no UI, no broker/exchange integration yet).
+- Monorepo foundation with implemented core, API, CLI, and local web client.
 - Single mode axis: `market_mode`.
   - `bear` means accumulation behavior.
   - `bull` means distribution behavior.
@@ -103,15 +103,23 @@ Stateful CLI storage layout (inside current working directory):
 - `psa evaluate-* --strategy-id <id>` - deterministic evaluation using stored strategies
 - `psa install-skill <runtime> [--skills-dir /path/to/skills-dir] [--agents-dir /path/to/agents-dir] --json` - install `psa-strategist` for target runtime
 
-## Web POC: Transfer & Evaluate
+## Web: Create / Use
 
-Temporary local MVP screen to prove one JSON strategy payload works across web/agent/cli/API.
+Local web client for canonical strategy editing and evaluation via API/core.
 
 What it does:
-- one bidirectional JSON field (paste/copy) with canonical strategy payload shape;
-- upload/download `.json` without format conversion;
-- price slider that calls `POST /v1/evaluate/point`;
-- displays `target_share` and `base_share`.
+- `Create` mode:
+  - canonical strategy JSON editor + explicit `Apply JSON`;
+  - form controls for `market_mode`, `price_segments`, `time_segments`;
+  - weight allocation helper (rebalance + lock).
+- `Use` mode:
+  - evaluate `now` and custom point (`timestamp`, `price`);
+  - line chart: `Price vs Share (without time modifier)`;
+  - heatmap + 3D only when `time_segments` are present.
+- API-first chart/evaluation flow:
+  - `POST /v1/evaluate/point`
+  - `POST /v1/evaluate/rows`
+  - `POST /v1/evaluate/rows-from-ranges`
 
 Start API:
 
@@ -127,11 +135,10 @@ npm install
 npm run dev
 ```
 
-## Web POC extension points
+## Web notes
 
-- replace fixed timestamp (`POC only`) with UI time control;
-- add richer charting and variant comparison;
-- integrate timeline/log workflows after strategy transfer flow is stable.
+- Web client does not re-implement model math in frontend.
+- Complex analytics beyond current core/API contracts stay out of scope for web layer.
 
 ## Run tests
 
@@ -164,7 +171,7 @@ See:
 - `core/src/psa_core/` - core package.
 - `cli/src/psa_cli/` - CLI package.
 - `api/src/psa_api/` - FastAPI package.
-- `web/` - React + Vite local POC (`Transfer & Evaluate`).
+- `web/` - React + Vite local client (`Create / Use`, API-first evaluation).
 - `skills/` - agent skill definitions and reference playbooks.
 - `schemas/` - versioned JSON schemas.
 - `examples/` - contract payload examples.
