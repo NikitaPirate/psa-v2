@@ -5,6 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "typecheck": "tsc --noEmit",
+    "test:ci": "vitest run",
     "build": "vite build",
     "preview": "vite preview",
     "test": "vitest"

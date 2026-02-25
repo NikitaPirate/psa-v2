@@ -8,6 +8,8 @@ import {
 } from "./content";
 import { docsPromptByLocale } from "./prompt";
 
+export type { DocsLocale } from "./content";
+
 type DocsPageProps = {
   locale: DocsLocale;
   onNavigateToApp: (mode: "create" | "use") => void;

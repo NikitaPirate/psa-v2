@@ -146,12 +146,16 @@ npm run dev
 
 ```bash
 uv run pytest
+npm --prefix web run test:ci
 ```
 
-## Lint
+## Static checks
 
 ```bash
 uv run ruff check .
+uv run pyright
+npm --prefix web run typecheck
+npm --prefix web run build
 ```
 
 ## Public Python API

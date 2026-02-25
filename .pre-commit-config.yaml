@@ -23,3 +23,15 @@ repos:
         language: system
         pass_filenames: false
         stages: [pre-push, manual]
+      - id: web-typecheck
+        name: web typecheck
+        entry: npm --prefix web run typecheck
+        language: system
+        pass_filenames: false
+        stages: [pre-push, manual]
+      - id: web-test-ci
+        name: web test (ci)
+        entry: npm --prefix web run test:ci
+        language: system
+        pass_filenames: false
+        stages: [pre-push, manual]
