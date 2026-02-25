@@ -13,6 +13,9 @@ Storage mutations:
 - `schemas/strategy_upsert.request.v1.json`
 - `schemas/log_append.request.v1.json`
 
+Portable strategy payload:
+- canonical transferable strategy shape is `schemas/strategy_upsert.request.v1.json`.
+
 ## Response schemas
 
 Evaluation responses:
@@ -49,6 +52,14 @@ Strategy/log responses are CLI-defined JSON payloads validated by integration te
 - `price_segments` must include at least one row with `weight > 0`.
 - Schema checks structure and primitive constraints.
 - Cross-field and semantic constraints are enforced in `core/src/psa_core/validation.py`.
+- Raw JSON transfer is contract-preserving when the payload shape is unchanged:
+  - plain text JSON and `.json` file content are equivalent representations of the same payload;
+  - no additional bridge schema is required for cross-surface strategy transfer.
+
+## Transfer notes
+
+- `psa strategy show --json` returns a wrapper object for CLI state metadata.
+- For cross-surface transfer of strategy body, use the nested `strategy` field value as the canonical payload.
 
 ## Runtime adapters
 

@@ -2,10 +2,10 @@
 
 ## System role
 
-`PSA Platform` is a monorepo workspace with two active runtime surfaces:
+`PSA Platform` is a monorepo workspace with one computation core and multiple interaction surfaces.
 
-- pure computation core for directional share targets;
-- AI-first CLI that stores strategies and append-only logs locally.
+The core stays the only source of computation semantics.
+Other modules expose the same semantics through different runtime surfaces (CLI, API, UI clients, agent clients).
 
 ## Module map
 
@@ -23,6 +23,17 @@ CLI:
 - `cli/src/psa_cli/store.py` - local strategy/log persistence.
 - `cli/src/psa_cli/locks.py` - per-strategy write lock.
 - `cli/src/psa_cli/schema.py` - request schema loading and validation.
+
+API:
+- `api/src/psa_api/main.py` - FastAPI app assembly.
+- `api/src/psa_api/routes.py` - HTTP route handlers.
+- `api/src/psa_api/schema_validation.py` - request/response schema checks.
+- `api/src/psa_api/errors.py` - JSON error envelope mapping.
+
+Web:
+- `web/src/App.tsx` - `Create / Use` interaction entrypoint.
+- `web/src/main.tsx` - React bootstrap.
+- `web/src/styles.css` - local UI styling.
 
 ## Local storage
 
@@ -46,17 +57,33 @@ Writes are synchronized by `.psa/strategies/<strategy_id>/.lock`.
 - `core/contracts.py`: runtime adapter checks and conversion for core evaluation inputs.
 - `core/validation.py`: semantic domain constraints and invariants.
 - `cli/schema.py`: JSON Schema boundary checks for CLI payloads.
+- `api/src/psa_api/schema_validation.py`: JSON Schema boundary checks for HTTP payloads.
 - `cli/store.py`: strategy/log existence and persistence integrity checks.
+
+## Scenario model
+
+One toolset supports two scenario families:
+
+- strategy creation and adjustment;
+- strategy usage and evaluation.
+
+These scenarios are intentionally separated at UX-flow level, but they are not separate products.
+A user can move between both flows without changing the underlying toolset or contracts.
+
+## Cross-surface integration
+
+- Agent, CLI, and web flows exchange strategy data via canonical JSON payloads.
+- Data portability is a first-class requirement: the same strategy payload must remain valid across surfaces.
+- Transfer format stays plain JSON text or `.json` file content; no mandatory bridge format is introduced.
 
 ## Out of scope
 
-- UI rendering.
 - Order execution.
 - Broker/exchange integrations.
 - Regime auto-detection.
 - Rebalancing strategy construction.
 - Fee, commission, and slippage accounting.
-- Network backends and remote storage.
+- Hosted multi-tenant storage backends.
 
 ## Cross-reference
 

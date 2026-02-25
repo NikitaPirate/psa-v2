@@ -28,6 +28,10 @@
 - JSON error envelope and exit-code behavior,
 - lock contention timeout behavior.
 
+5. Cross-surface consistency checks
+- when the same strategy payload and observation input are used, evaluation outputs must match across entrypoints;
+- strategy transfer as raw JSON text and as `.json` file content must preserve payload semantics.
+
 ## Execution
 
 ```bash

@@ -5,7 +5,7 @@ Current implemented modules: deterministic computation core plus AI-first statef
 
 ## Scope (Phase 0)
 
-- Monorepo foundation with implemented core module (no UI, no broker/exchange integration yet).
+- Monorepo foundation with implemented core, API, CLI, and local web client.
 - Single mode axis: `market_mode`.
   - `bear` means accumulation behavior.
   - `bull` means distribution behavior.
@@ -103,6 +103,45 @@ Stateful CLI storage layout (inside current working directory):
 - `psa evaluate-* --strategy-id <id>` - deterministic evaluation using stored strategies
 - `psa install-skill <runtime> [--skills-dir /path/to/skills-dir] [--agents-dir /path/to/agents-dir] --json` - install `psa-strategist` for target runtime
 
+## Web: Create / Use
+
+Local web client for canonical strategy editing and evaluation via API/core.
+
+What it does:
+- `Create` mode:
+  - canonical strategy JSON editor + explicit `Apply JSON`;
+  - form controls for `market_mode`, `price_segments`, `time_segments`;
+  - weight allocation helper (rebalance + lock).
+- `Use` mode:
+  - evaluate `now` and custom point (`timestamp`, `price`);
+  - line chart: `Price vs Share (without time modifier)`;
+  - heatmap + 3D only when `time_segments` are present.
+- Docs mode:
+  - isolated docs page at `/docs/en` and `/docs/ru` (main app UI remains English).
+- API-first chart/evaluation flow:
+  - `POST /v1/evaluate/point`
+  - `POST /v1/evaluate/rows`
+  - `POST /v1/evaluate/rows-from-ranges`
+
+Start API:
+
+```bash
+uv run uvicorn psa_api.main:app --reload
+```
+
+Start web app:
+
+```bash
+cd web
+npm install
+npm run dev
+```
+
+## Web notes
+
+- Web client does not re-implement model math in frontend.
+- Complex analytics beyond current core/API contracts stay out of scope for web layer.
+
 ## Run tests
 
 ```bash
@@ -134,6 +173,7 @@ See:
 - `core/src/psa_core/` - core package.
 - `cli/src/psa_cli/` - CLI package.
 - `api/src/psa_api/` - FastAPI package.
+- `web/` - React + Vite local client (`Create / Use`, API-first evaluation).
 - `skills/` - agent skill definitions and reference playbooks.
 - `schemas/` - versioned JSON schemas.
 - `examples/` - contract payload examples.

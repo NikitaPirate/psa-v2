@@ -10,3 +10,10 @@ build/
 .hypothesis/
 .DS_Store
 .psa/
+node_modules/
+web/dist/
+
+.devserver/
+.devserverrc
+
+.codex
