@@ -21,6 +21,8 @@ type CreateScreenProps = {
   charts: ChartDataBundle;
   chartLoading: boolean;
   chartError: string;
+  chartTimestamp: string;
+  onChartTimestampChange: (timestamp: string) => void;
   onJsonTextChange: (text: string) => void;
   onApplyJson: () => void;
   onSaveJson: () => void;
@@ -78,6 +80,8 @@ export function CreateScreen(props: CreateScreenProps) {
         charts={props.charts}
         isLoading={props.chartLoading}
         error={props.chartError}
+        chartTimestamp={props.chartTimestamp}
+        onChartTimestampChange={props.onChartTimestampChange}
       />
     </>
   );

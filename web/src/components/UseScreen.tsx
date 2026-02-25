@@ -13,6 +13,8 @@ type UseScreenProps = {
   charts: ChartDataBundle;
   chartLoading: boolean;
   chartError: string;
+  chartTimestamp: string;
+  onChartTimestampChange: (timestamp: string) => void;
   onNowPriceChange: (value: number) => void;
   onCustomPriceChange: (value: number) => void;
   onCustomTimestampChange: (value: string) => void;
@@ -75,6 +77,8 @@ export function UseScreen({
   charts,
   chartLoading,
   chartError,
+  chartTimestamp,
+  onChartTimestampChange,
   onNowPriceChange,
   onCustomPriceChange,
   onCustomTimestampChange,
@@ -153,6 +157,8 @@ export function UseScreen({
         charts={charts}
         isLoading={chartLoading}
         error={chartError}
+        chartTimestamp={chartTimestamp}
+        onChartTimestampChange={onChartTimestampChange}
       />
     </>
   );

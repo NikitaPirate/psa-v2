@@ -3,11 +3,9 @@ import { evaluatePoint, evaluateRows, evaluateRowsFromRanges } from "./lib/api";
 import {
   buildDefaultStrategy,
   cloneStrategy,
-  fromLocalDateTimeInput,
   parseCanonicalStrategy,
   strategyPriceBounds,
   stringifyCanonicalStrategy,
-  toLocalDateTimeInput,
   validateCanonicalStrategy,
 } from "./lib/strategy";
 import {
@@ -437,17 +435,6 @@ export function App() {
               Docs
             </a>
           </div>
-
-          <label className="chart-time-input">
-            Chart time
-            <input
-              type="datetime-local"
-              value={toLocalDateTimeInput(chartTimestamp)}
-              onChange={(event) =>
-                setChartTimestamp(fromLocalDateTimeInput(event.target.value))
-              }
-            />
-          </label>
         </div>
       </header>
 
@@ -465,6 +452,8 @@ export function App() {
           charts={charts}
           chartLoading={chartLoading}
           chartError={chartError}
+          chartTimestamp={chartTimestamp}
+          onChartTimestampChange={setChartTimestamp}
           onJsonTextChange={(value) => {
             setJsonText(value);
             if (jsonStatus) {
@@ -667,6 +656,8 @@ export function App() {
           charts={charts}
           chartLoading={chartLoading}
           chartError={chartError}
+          chartTimestamp={chartTimestamp}
+          onChartTimestampChange={setChartTimestamp}
           onNowPriceChange={(value) => setNowPriceInput(sanitizePositivePrice(value))}
           onCustomPriceChange={(value) => setCustomPriceInput(sanitizePositivePrice(value))}
           onCustomTimestampChange={(value) => setCustomTimestampInput(value)}

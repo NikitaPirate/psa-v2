@@ -1,4 +1,5 @@
 import { ChartDataBundle } from "../lib/types";
+import { fromLocalDateTimeInput, toLocalDateTimeInput } from "../lib/strategy";
 import { PlotlyChart } from "./PlotlyChart";
 
 type ChartsPanelProps = {
@@ -6,14 +7,35 @@ type ChartsPanelProps = {
   charts: ChartDataBundle;
   isLoading: boolean;
   error: string;
+  chartTimestamp: string;
+  onChartTimestampChange: (timestamp: string) => void;
 };
 
-export function ChartsPanel({ marketMode, charts, isLoading, error }: ChartsPanelProps) {
+export function ChartsPanel({
+  marketMode,
+  charts,
+  isLoading,
+  error,
+  chartTimestamp,
+  onChartTimestampChange,
+}: ChartsPanelProps) {
   const isBearMode = marketMode === "bear";
 
   return (
     <section className="panel">
-      <h2>Charts</h2>
+      <div className="charts-head">
+        <h2>Charts</h2>
+        <label className="chart-time-input">
+          Chart time
+          <input
+            type="datetime-local"
+            value={toLocalDateTimeInput(chartTimestamp)}
+            onChange={(event) =>
+              onChartTimestampChange(fromLocalDateTimeInput(event.target.value))
+            }
+          />
+        </label>
+      </div>
       {isLoading && <p className="status">Loading charts...</p>}
       {error && <p className="status error">{error}</p>}
 
