@@ -103,6 +103,36 @@ Stateful CLI storage layout (inside current working directory):
 - `psa evaluate-* --strategy-id <id>` - deterministic evaluation using stored strategies
 - `psa install-skill <runtime> [--skills-dir /path/to/skills-dir] [--agents-dir /path/to/agents-dir] --json` - install `psa-strategist` for target runtime
 
+## Web POC: Transfer & Evaluate
+
+Temporary local MVP screen to prove one JSON strategy payload works across web/agent/cli/API.
+
+What it does:
+- one bidirectional JSON field (paste/copy) with canonical strategy payload shape;
+- upload/download `.json` without format conversion;
+- price slider that calls `POST /v1/evaluate/point`;
+- displays `target_share` and `base_share`.
+
+Start API:
+
+```bash
+uv run uvicorn psa_api.main:app --reload
+```
+
+Start web app:
+
+```bash
+cd web
+npm install
+npm run dev
+```
+
+## Web POC extension points
+
+- replace fixed timestamp (`POC only`) with UI time control;
+- add richer charting and variant comparison;
+- integrate timeline/log workflows after strategy transfer flow is stable.
+
 ## Run tests
 
 ```bash
@@ -134,6 +164,7 @@ See:
 - `core/src/psa_core/` - core package.
 - `cli/src/psa_cli/` - CLI package.
 - `api/src/psa_api/` - FastAPI package.
+- `web/` - React + Vite local POC (`Transfer & Evaluate`).
 - `skills/` - agent skill definitions and reference playbooks.
 - `schemas/` - versioned JSON schemas.
 - `examples/` - contract payload examples.
