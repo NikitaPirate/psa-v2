@@ -95,8 +95,8 @@ export function UseScreen({
               price
               <input
                 type="number"
-                min="0"
-                step="1"
+                min="0.01"
+                step="0.01"
                 value={nowPriceInput}
                 onChange={(event) => onNowPriceChange(Number(event.target.value))}
               />
@@ -122,8 +122,8 @@ export function UseScreen({
               price
               <input
                 type="number"
-                min="0"
-                step="1"
+                min="0.01"
+                step="0.01"
                 value={customPriceInput}
                 onChange={(event) => onCustomPriceChange(Number(event.target.value))}
               />

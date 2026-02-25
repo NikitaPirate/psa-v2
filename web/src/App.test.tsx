@@ -144,4 +144,53 @@ describe("App", () => {
 
     expect(screen.getAllByText("No time segments").length).toBeGreaterThan(0);
   });
+
+  it("adds a price segment with strictly positive lower bound", async () => {
+    render(<App />);
+
+    const textarea = screen.getByLabelText(/strategy json/i);
+    fireEvent.change(textarea, {
+      target: {
+        value: JSON.stringify(
+          {
+            market_mode: "bear",
+            price_segments: [{ price_low: 1, price_high: 2, weight: 100 }],
+            time_segments: [],
+          },
+          null,
+          2,
+        ),
+      },
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Apply JSON" }));
+
+    await waitFor(() => {
+      expect(screen.getByText("JSON applied.")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getAllByRole("button", { name: "Add row" })[0]);
+
+    const priceLowInputs = screen
+      .getAllByLabelText(/^price_low$/i)
+      .map((input) => Number((input as HTMLInputElement).value));
+
+    expect(priceLowInputs.every((value) => value > 0)).toBe(true);
+  });
+
+  it("clamps now price to a positive value before evaluation", async () => {
+    render(<App />);
+
+    fireEvent.click(screen.getByRole("tab", { name: "Use" }));
+
+    const nowPriceInput = screen.getAllByLabelText(/^price$/i)[0] as HTMLInputElement;
+    expect(nowPriceInput).toHaveAttribute("min", "0.01");
+
+    fireEvent.change(nowPriceInput, { target: { value: "0" } });
+    fireEvent.click(screen.getByRole("button", { name: "Evaluate now" }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/price:\s*\$0\.01/i)).toBeInTheDocument();
+    });
+  });
 });

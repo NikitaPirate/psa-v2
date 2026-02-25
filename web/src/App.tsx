@@ -36,6 +36,7 @@ type Mode = "create" | "use";
 const CHART_DEBOUNCE_MS = 320;
 const CHART_PRICE_STEPS = 31;
 const CHART_TIME_STEPS = 24;
+const MIN_OBSERVATION_PRICE = 0.01;
 
 const nowIso = (): string => new Date().toISOString();
 const randomId = (): string =>
@@ -46,6 +47,11 @@ function sanitizeNumber(value: number, fallback = 0): number {
     return fallback;
   }
   return value;
+}
+
+function sanitizePositivePrice(value: number): number {
+  const sanitized = sanitizeNumber(value, MIN_OBSERVATION_PRICE);
+  return sanitized > 0 ? sanitized : MIN_OBSERVATION_PRICE;
 }
 
 function maxTimeSegmentEnd(strategy: CanonicalStrategy): string | null {
@@ -321,7 +327,7 @@ export function App() {
     }
 
     const timestamp = nowIso();
-    const price = sanitizeNumber(nowPriceInput, bounds.min);
+    const price = sanitizePositivePrice(nowPriceInput);
     setNowPoint((current) => ({
       ...current,
       timestamp,
@@ -359,7 +365,7 @@ export function App() {
     }
 
     const timestamp = customTimestampInput;
-    const price = sanitizeNumber(customPriceInput, bounds.min);
+    const price = sanitizePositivePrice(customPriceInput);
 
     setCustomPoint((current) => ({
       ...current,
@@ -500,8 +506,12 @@ export function App() {
               const currentMin = Math.min(
                 ...current.price_segments.map((row) => Math.min(row.price_low, row.price_high)),
               );
-              const nextHigh = Number.isFinite(currentMin) ? currentMin : bounds.max;
-              const nextLow = Math.max(1, Math.round(nextHigh * 0.8));
+              const anchorHigh = Number.isFinite(currentMin) ? currentMin : bounds.max;
+              const nextHigh = Math.max(0.02, anchorHigh);
+              const nextLow = Math.max(
+                0.01,
+                Math.min(nextHigh * 0.8, nextHigh - 0.01),
+              );
 
               const nextRows = normalizeWeightsToHundred(
                 current.price_segments
@@ -515,8 +525,8 @@ export function App() {
               const nextSegments = [
                 ...current.price_segments,
                 {
-                  price_low: Math.min(nextLow, nextHigh - 1),
-                  price_high: Math.max(nextHigh, nextLow + 1),
+                  price_low: nextLow,
+                  price_high: nextHigh,
                   weight: 0,
                 },
               ];
@@ -639,10 +649,8 @@ export function App() {
           charts={charts}
           chartLoading={chartLoading}
           chartError={chartError}
-          onNowPriceChange={(value) => setNowPriceInput(sanitizeNumber(value, bounds.min))}
-          onCustomPriceChange={(value) =>
-            setCustomPriceInput(sanitizeNumber(value, bounds.min))
-          }
+          onNowPriceChange={(value) => setNowPriceInput(sanitizePositivePrice(value))}
+          onCustomPriceChange={(value) => setCustomPriceInput(sanitizePositivePrice(value))}
           onCustomTimestampChange={(value) => setCustomTimestampInput(value)}
           onEvaluateNow={() => void evaluateNow()}
           onEvaluateCustom={() => void evaluateCustom()}

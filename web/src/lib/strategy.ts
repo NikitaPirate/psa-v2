@@ -13,10 +13,15 @@ const DEFAULT_PRICE_SEGMENT: CanonicalPriceSegment = {
   weight: 100,
 };
 
+const ISO_WITH_TIMEZONE_SUFFIX = /(Z|[+-]\d{2}:\d{2})$/;
+
 const isFiniteNumber = (value: unknown): value is number =>
   typeof value === "number" && Number.isFinite(value);
 
 const parseIsoWithTimezone = (value: string): number => {
+  if (!ISO_WITH_TIMEZONE_SUFFIX.test(value)) {
+    return Number.NaN;
+  }
   const ts = Date.parse(value);
   return Number.isFinite(ts) ? ts : Number.NaN;
 };
