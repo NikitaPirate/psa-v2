@@ -138,6 +138,27 @@ npm install
 npm run dev
 ```
 
+## Docker Deploy (API + Web)
+
+Base `docker-compose.yml` does not publish ports and is intended for reverse-proxy access through external Docker network `docker_network`.
+
+Run stack:
+
+```bash
+docker compose up -d --build
+```
+
+For local port mapping, keep a local untracked override:
+
+```bash
+cp docker-compose.override.example.yml docker-compose.override.yml
+docker compose up -d --build
+```
+
+Default local ports from override example:
+- API: `8000`
+- Web (nginx): `8080`
+
 ## Web notes
 
 - Web client does not re-implement model math in frontend.
