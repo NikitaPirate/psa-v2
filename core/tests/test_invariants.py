@@ -41,10 +41,22 @@ def test_shares_are_bounded(day: int, price: float, mode: str) -> None:
 
 @settings(max_examples=120)
 @given(
+    day=st.integers(min_value=0, max_value=180),
+    price=st.floats(min_value=25_000, max_value=70_000, allow_nan=False, allow_infinity=False),
+)
+def test_base_share_is_mode_invariant_for_same_segments(day: int, price: float) -> None:
+    bear = evaluate_point(_strategy("bear"), _iso(day), price)
+    bull = evaluate_point(_strategy("bull"), _iso(day), price)
+
+    assert bear.base_share == bull.base_share
+
+
+@settings(max_examples=120)
+@given(
     p_a=st.floats(min_value=25_000, max_value=70_000, allow_nan=False, allow_infinity=False),
     p_b=st.floats(min_value=25_000, max_value=70_000, allow_nan=False, allow_infinity=False),
 )
-def test_monotonicity_by_favorable_price_direction(p_a: float, p_b: float) -> None:
+def test_base_share_monotonicity_by_price_for_both_modes(p_a: float, p_b: float) -> None:
     low, high = (p_a, p_b) if p_a <= p_b else (p_b, p_a)
     ts = _iso(60)
 
@@ -57,7 +69,7 @@ def test_monotonicity_by_favorable_price_direction(p_a: float, p_b: float) -> No
 
     bull_low = evaluate_point(bull, ts, low)
     bull_high = evaluate_point(bull, ts, high)
-    assert bull_high.base_share >= bull_low.base_share
+    assert bull_low.base_share >= bull_high.base_share
 
 
 @settings(max_examples=120)
@@ -66,7 +78,7 @@ def test_monotonicity_by_favorable_price_direction(p_a: float, p_b: float) -> No
     day_b=st.integers(min_value=0, max_value=180),
     mode=st.sampled_from(["bear", "bull"]),
 )
-def test_target_share_non_decreasing_over_time_with_non_decreasing_k(
+def test_target_share_time_monotonicity_by_market_mode_with_non_decreasing_k(
     day_a: int,
     day_b: int,
     mode: str,
@@ -78,4 +90,7 @@ def test_target_share_non_decreasing_over_time_with_non_decreasing_k(
     first = evaluate_point(strategy, _iso(left), price)
     second = evaluate_point(strategy, _iso(right), price)
 
-    assert second.target_share >= first.target_share
+    if mode == "bear":
+        assert second.target_share >= first.target_share
+    else:
+        assert second.target_share <= first.target_share

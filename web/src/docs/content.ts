@@ -137,12 +137,12 @@ export const DOCS_TEXT = {
   },
   chartsItems: {
     en: [
-      "Chart 1 (Price vs Share): shows base share without time modifier; axis direction depends on market_mode.",
+      "Chart 1 (Price vs Share): shows base share without time modifier; bear path is left high -> right low, bull path is left low -> right high.",
       "Chart 2 (Heatmap): date x price map of target share; available when time_segments are present and include future range.",
       "Chart 3 (3D Surface): same target-share surface in 3D for trend visibility across date and price.",
     ],
     ru: [
-      "Chart 1 (Price vs Share): показывает базовую долю без time modifier; направление оси зависит от market_mode.",
+      "Chart 1 (Price vs Share): показывает базовую долю без time modifier; для bear путь слева высокая цена -> справа низкая, для bull - слева низкая -> справа высокая.",
       "Chart 2 (Heatmap): карта target share по осям date x price; доступна, когда есть time_segments с будущим диапазоном.",
       "Chart 3 (3D Surface): та же поверхность target share в 3D для наглядности тренда по дате и цене.",
     ],

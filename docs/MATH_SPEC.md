@@ -2,7 +2,7 @@
 
 ## Definitions
 
-- `S_base(p, mode)` - normalized share from price only, in `[0, 1]`.
+- `S_base(p)` - normalized share from price only, in `[0, 1]`.
 - `k(t)` - time coefficient from piecewise-linear time segments.
 - `p_virtual` - transformed price used for time-adjusted target.
 - `S_target` - target share at transformed price.
@@ -10,11 +10,7 @@
 ## Price share
 
 For each non-overlapping segment with normalized weight `w_i`:
-
-- `mode = bear`:
-  - share rises as price moves lower.
-- `mode = bull`:
-  - share rises as price moves higher.
+- share rises as price moves lower, for both `bear` and `bull`.
 
 Total price share is weighted sum across segments and clamped to `[0, 1]`.
 
@@ -31,7 +27,9 @@ Total price share is weighted sum across segments and clamped to `[0, 1]`.
 - `bear`: `p_virtual = p / k(t)`
 - `bull`: `p_virtual = p * k(t)`
 
-With non-decreasing `k(t)`, both modes become more advanced in target share over time.
+With non-decreasing `k(t)`:
+- `bear` increases target share over time,
+- `bull` decreases target share over time.
 
 ## Numerical stability guard
 
@@ -45,9 +43,10 @@ With non-decreasing `k(t)`, both modes become more advanced in target share over
 - `0 <= S_base <= 1`
 - `0 <= S_target <= 1`
 - For fixed time:
-  - bear mode: lower price must not reduce share,
-  - bull mode: higher price must not reduce share.
-- For fixed price and non-decreasing `k(t)`: target share must not decrease over time.
+  - lower price must not reduce share, for both modes.
+- For fixed price and non-decreasing `k(t)`:
+  - bear mode: target share must not decrease over time,
+  - bull mode: target share must not increase over time.
 
 ## Portfolio evaluation
 

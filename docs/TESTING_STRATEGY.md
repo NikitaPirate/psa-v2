@@ -11,8 +11,10 @@
 
 2. Core property/invariant tests (`core/tests/test_invariants.py`)
 - bounded shares,
-- monotonic favorable-direction behavior,
-- non-decreasing target share over time when `k(t)` is non-decreasing.
+- monotonic price behavior (lower price must not reduce share for both modes),
+- mode-specific target-share time monotonicity when `k(t)` is non-decreasing:
+  - `bear`: target share is non-decreasing,
+  - `bull`: target share is non-increasing.
 
 3. Core contract tests (`core/tests/test_contracts.py`)
 - schema validity,

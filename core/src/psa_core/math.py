@@ -25,6 +25,8 @@ def compute_price_share(
     segments: Sequence[PriceSegment],
     market_mode: MarketMode,
 ) -> float:
+    # market_mode is intentionally kept in the signature for API stability.
+    _ = market_mode
     normalized = normalize_weights(segments)
 
     share = 0.0
@@ -33,20 +35,12 @@ def compute_price_share(
         high = float(segment.price_high)
         width = max(high - low, EPS)
 
-        if market_mode == "bear":
-            if price >= high:
-                local = 0.0
-            elif price <= low:
-                local = 1.0
-            else:
-                local = (high - price) / width
+        if price >= high:
+            local = 0.0
+        elif price <= low:
+            local = 1.0
         else:
-            if price <= low:
-                local = 0.0
-            elif price >= high:
-                local = 1.0
-            else:
-                local = (price - low) / width
+            local = (high - price) / width
 
         share += weight * clamp(local, 0.0, 1.0)
 
