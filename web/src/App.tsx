@@ -9,6 +9,7 @@ import {
   buildDefaultStrategy,
   cloneStrategy,
   parseCanonicalStrategy,
+  strategyDefaultPrice,
   strategyPriceBounds,
   stringifyCanonicalStrategy,
   validateCanonicalStrategy,
@@ -32,23 +33,28 @@ import {
   sumWeights,
   weightTotalTarget,
 } from "./lib/weights";
+import {
+  AppMode,
+  loadPersistedState,
+  PersistedWebStateV1,
+  PERSISTED_WEB_STATE_VERSION,
+  savePersistedState,
+} from "./lib/persistence";
 import { CreateScreen } from "./components/CreateScreen";
 import { UseScreen } from "./components/UseScreen";
 
-type Mode = "create" | "use";
+type Mode = AppMode;
 
 const CHART_DEBOUNCE_MS = 320;
 const CHART_PRICE_STEPS = 31;
 const CHART_TIME_STEPS = 24;
 const MIN_OBSERVATION_PRICE = 0.01;
+const DEFAULT_PORTFOLIO_USD = 10_000;
+const DEFAULT_PORTFOLIO_ASSET = 0.25;
 
 const nowIso = (): string => new Date().toISOString();
 const randomId = (): string =>
   `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
-const initialModeFromLocation = (): Mode => {
-  const params = new URLSearchParams(window.location.search);
-  return params.get("mode") === "use" ? "use" : "create";
-};
 
 function sanitizeNumber(value: number, fallback = 0): number {
   if (!Number.isFinite(value)) {
@@ -65,6 +71,105 @@ function sanitizePositivePrice(value: number): number {
 function sanitizeNonNegativeNumber(value: number, fallback = 0): number {
   const sanitized = sanitizeNumber(value, fallback);
   return sanitized >= 0 ? sanitized : 0;
+}
+
+function isValidIsoTimestamp(value: string): boolean {
+  const parsedTimestamp = Date.parse(value);
+  return Number.isFinite(parsedTimestamp);
+}
+
+function sanitizeTimestamp(value: string, fallback: string): string {
+  return isValidIsoTimestamp(value) ? value : fallback;
+}
+
+function clampPriceToBounds(
+  value: number,
+  bounds: { min: number; max: number },
+  fallback: number,
+): number {
+  const sanitized = sanitizePositivePrice(value);
+  const clamped = Math.min(Math.max(sanitized, bounds.min), bounds.max);
+  if (Number.isFinite(clamped) && clamped > 0) {
+    return clamped;
+  }
+  return sanitizePositivePrice(fallback);
+}
+
+function initialModeFromLocation(persistedMode: Mode | undefined): Mode {
+  const params = new URLSearchParams(window.location.search);
+  const modeFromQuery = params.get("mode");
+  if (modeFromQuery === "create" || modeFromQuery === "use") {
+    return modeFromQuery;
+  }
+  if (persistedMode === "create" || persistedMode === "use") {
+    return persistedMode;
+  }
+  return "create";
+}
+
+type InitialAppState = {
+  mode: Mode;
+  strategy: CanonicalStrategy;
+  nowPriceInput: number;
+  customTimestampInput: string;
+  customPriceInput: number;
+  portfolioTimestampInput: string;
+  portfolioPriceInput: number;
+  portfolioUsdInput: number;
+  portfolioAssetInput: number;
+  portfolioAvgEntryPriceInput: string;
+  chartTimestamp: string;
+};
+
+function buildInitialAppState(): InitialAppState {
+  const persisted = loadPersistedState();
+  const strategy = persisted?.strategy ?? buildDefaultStrategy();
+  const bounds = strategyPriceBounds(strategy);
+  const fallbackPrice = clampPriceToBounds(
+    strategyDefaultPrice(strategy),
+    bounds,
+    (bounds.min + bounds.max) / 2,
+  );
+  const currentTimestamp = nowIso();
+  const useDraft = persisted?.use_draft;
+
+  const nowPriceInput = useDraft
+    ? clampPriceToBounds(useDraft.now_price_input, bounds, fallbackPrice)
+    : fallbackPrice;
+  const customPriceInput = useDraft
+    ? clampPriceToBounds(useDraft.custom_price_input, bounds, fallbackPrice)
+    : fallbackPrice;
+  const portfolioPriceInput = useDraft
+    ? clampPriceToBounds(useDraft.portfolio_price_input, bounds, fallbackPrice)
+    : fallbackPrice;
+
+  const customTimestampInput = useDraft
+    ? sanitizeTimestamp(useDraft.custom_timestamp_input, currentTimestamp)
+    : currentTimestamp;
+  const portfolioTimestampInput = useDraft
+    ? sanitizeTimestamp(useDraft.portfolio_timestamp_input, currentTimestamp)
+    : currentTimestamp;
+  const chartTimestamp = persisted
+    ? sanitizeTimestamp(persisted.ui?.chart_timestamp ?? currentTimestamp, currentTimestamp)
+    : currentTimestamp;
+
+  return {
+    mode: initialModeFromLocation(persisted?.ui?.mode),
+    strategy,
+    nowPriceInput,
+    customTimestampInput,
+    customPriceInput,
+    portfolioTimestampInput,
+    portfolioPriceInput,
+    portfolioUsdInput: useDraft
+      ? sanitizeNonNegativeNumber(useDraft.portfolio_usd_input, DEFAULT_PORTFOLIO_USD)
+      : DEFAULT_PORTFOLIO_USD,
+    portfolioAssetInput: useDraft
+      ? sanitizeNonNegativeNumber(useDraft.portfolio_asset_input, DEFAULT_PORTFOLIO_ASSET)
+      : DEFAULT_PORTFOLIO_ASSET,
+    portfolioAvgEntryPriceInput: useDraft?.portfolio_avg_entry_price_input ?? "",
+    chartTimestamp,
+  };
 }
 
 function maxTimeSegmentEnd(strategy: CanonicalStrategy): string | null {
@@ -101,12 +206,17 @@ function initialUsePoint(price: number): UsePointState {
   };
 }
 
-function initialUsePortfolio(price: number): UsePortfolioState {
+function initialUsePortfolio(
+  timestamp: string,
+  price: number,
+  usdAmount: number,
+  assetAmount: number,
+): UsePortfolioState {
   return {
-    timestamp: nowIso(),
+    timestamp,
     price,
-    usd_amount: 10_000,
-    asset_amount: 0.25,
+    usd_amount: usdAmount,
+    asset_amount: assetAmount,
     avg_entry_price: null,
     result: null,
     error: "",
@@ -115,49 +225,65 @@ function initialUsePortfolio(price: number): UsePortfolioState {
 }
 
 export function App() {
-  const [mode, setMode] = useState<Mode>(initialModeFromLocation);
-  const [strategy, setStrategy] = useState<CanonicalStrategy>(buildDefaultStrategy);
+  const initialState = useMemo(() => buildInitialAppState(), []);
+  const [mode, setMode] = useState<Mode>(initialState.mode);
+  const [strategy, setStrategy] = useState<CanonicalStrategy>(initialState.strategy);
 
   const bounds = useMemo(() => strategyPriceBounds(strategy), [strategy]);
 
   const [jsonText, setJsonText] = useState<string>(() =>
-    stringifyCanonicalStrategy(buildDefaultStrategy()),
+    stringifyCanonicalStrategy(initialState.strategy),
   );
   const [jsonStatus, setJsonStatus] = useState("");
   const [jsonError, setJsonError] = useState("");
   const [lockedPriceSegmentIds, setLockedPriceSegmentIds] = useState<string[]>([]);
   const [priceSegmentIds, setPriceSegmentIds] = useState<string[]>(() =>
-    buildDefaultStrategy().price_segments.map(() => randomId()),
+    initialState.strategy.price_segments.map(() => randomId()),
   );
 
-  const [chartTimestamp, setChartTimestamp] = useState<string>(() => nowIso());
+  const [chartTimestamp, setChartTimestamp] = useState<string>(initialState.chartTimestamp);
 
   const [chartLoading, setChartLoading] = useState(false);
   const [chartError, setChartError] = useState("");
   const [charts, setCharts] = useState(emptyChartBundle);
 
-  const [nowPriceInput, setNowPriceInput] = useState<number>(() =>
-    Math.round((bounds.min + bounds.max) / 2),
+  const [nowPriceInput, setNowPriceInput] = useState<number>(initialState.nowPriceInput);
+  const [customTimestampInput, setCustomTimestampInput] = useState<string>(
+    initialState.customTimestampInput,
   );
-  const [customTimestampInput, setCustomTimestampInput] = useState<string>(() => nowIso());
-  const [customPriceInput, setCustomPriceInput] = useState<number>(() =>
-    Math.round((bounds.min + bounds.max) / 2),
+  const [customPriceInput, setCustomPriceInput] = useState<number>(
+    initialState.customPriceInput,
   );
 
-  const [nowPoint, setNowPoint] = useState<UsePointState>(() => initialUsePoint(nowPriceInput));
-  const [customPoint, setCustomPoint] = useState<UsePointState>(() => ({
-    ...initialUsePoint(customPriceInput),
-    timestamp: customTimestampInput,
-  }));
-  const [portfolioTimestampInput, setPortfolioTimestampInput] = useState<string>(() => nowIso());
-  const [portfolioPriceInput, setPortfolioPriceInput] = useState<number>(() =>
-    Math.round((bounds.min + bounds.max) / 2),
+  const [nowPoint, setNowPoint] = useState<UsePointState>(() =>
+    initialUsePoint(initialState.nowPriceInput),
   );
-  const [portfolioUsdInput, setPortfolioUsdInput] = useState<number>(10_000);
-  const [portfolioAssetInput, setPortfolioAssetInput] = useState<number>(0.25);
-  const [portfolioAvgEntryPriceInput, setPortfolioAvgEntryPriceInput] = useState<string>("");
+  const [customPoint, setCustomPoint] = useState<UsePointState>(() => ({
+    ...initialUsePoint(initialState.customPriceInput),
+    timestamp: initialState.customTimestampInput,
+  }));
+  const [portfolioTimestampInput, setPortfolioTimestampInput] = useState<string>(
+    initialState.portfolioTimestampInput,
+  );
+  const [portfolioPriceInput, setPortfolioPriceInput] = useState<number>(
+    initialState.portfolioPriceInput,
+  );
+  const [portfolioUsdInput, setPortfolioUsdInput] = useState<number>(
+    initialState.portfolioUsdInput,
+  );
+  const [portfolioAssetInput, setPortfolioAssetInput] = useState<number>(
+    initialState.portfolioAssetInput,
+  );
+  const [portfolioAvgEntryPriceInput, setPortfolioAvgEntryPriceInput] = useState<string>(
+    initialState.portfolioAvgEntryPriceInput,
+  );
   const [portfolioState, setPortfolioState] = useState<UsePortfolioState>(() =>
-    initialUsePortfolio(Math.round((bounds.min + bounds.max) / 2)),
+    initialUsePortfolio(
+      initialState.portfolioTimestampInput,
+      initialState.portfolioPriceInput,
+      initialState.portfolioUsdInput,
+      initialState.portfolioAssetInput,
+    ),
   );
 
   const validationIssues = useMemo(() => validateCanonicalStrategy(strategy), [strategy]);
@@ -193,18 +319,58 @@ export function App() {
   }, [priceSegmentIds]);
 
   useEffect(() => {
-    const nextMid = Math.round((bounds.min + bounds.max) / 2);
+    const nextDefaultPrice = clampPriceToBounds(
+      strategyDefaultPrice(strategy),
+      bounds,
+      (bounds.min + bounds.max) / 2,
+    );
 
     setNowPriceInput((current) =>
-      Math.min(Math.max(current, bounds.min), bounds.max) || nextMid,
+      clampPriceToBounds(current, bounds, nextDefaultPrice),
     );
     setCustomPriceInput((current) =>
-      Math.min(Math.max(current, bounds.min), bounds.max) || nextMid,
+      clampPriceToBounds(current, bounds, nextDefaultPrice),
     );
     setPortfolioPriceInput((current) =>
-      Math.min(Math.max(current, bounds.min), bounds.max) || nextMid,
+      clampPriceToBounds(current, bounds, nextDefaultPrice),
     );
-  }, [bounds.max, bounds.min]);
+  }, [bounds.max, bounds.min, strategy]);
+
+  useEffect(() => {
+    const persistedState: PersistedWebStateV1 = {
+      version: PERSISTED_WEB_STATE_VERSION,
+      saved_at: nowIso(),
+      strategy,
+      use_draft: {
+        now_price_input: nowPriceInput,
+        custom_timestamp_input: customTimestampInput,
+        custom_price_input: customPriceInput,
+        portfolio_timestamp_input: portfolioTimestampInput,
+        portfolio_price_input: portfolioPriceInput,
+        portfolio_usd_input: portfolioUsdInput,
+        portfolio_asset_input: portfolioAssetInput,
+        portfolio_avg_entry_price_input: portfolioAvgEntryPriceInput,
+      },
+      ui: {
+        mode,
+        chart_timestamp: chartTimestamp,
+      },
+    };
+
+    savePersistedState(persistedState);
+  }, [
+    chartTimestamp,
+    customPriceInput,
+    customTimestampInput,
+    mode,
+    nowPriceInput,
+    portfolioAssetInput,
+    portfolioAvgEntryPriceInput,
+    portfolioPriceInput,
+    portfolioTimestampInput,
+    portfolioUsdInput,
+    strategy,
+  ]);
 
   useEffect(() => {
     const abort = new AbortController();

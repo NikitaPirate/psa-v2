@@ -16,6 +16,8 @@ npm run build
 - canonical strategy JSON payload (`strategy_upsert.request.v1.json` shape);
 - `Create` mode: JSON + form controls with explicit `Apply JSON`;
 - `Use` mode: evaluate `now` and custom point (`timestamp`, `price`);
+- browser persistence (`localStorage`) for strategy, `Use` input draft, and selected `Create/Use` mode;
+- evaluation results and charts are not persisted and are recomputed after reload;
 - docs mode (separate route, localized only inside docs):
   - `/docs/en`
   - `/docs/ru`

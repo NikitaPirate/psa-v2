@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseCanonicalStrategy } from "./strategy";
+import { parseCanonicalStrategy, strategyDefaultPrice } from "./strategy";
 
 const validBase = {
   market_mode: "bear",
@@ -41,5 +41,33 @@ describe("parseCanonicalStrategy timezone validation", () => {
         }),
       ),
     ).toThrowError(/start_ts must be ISO with timezone/i);
+  });
+});
+
+describe("strategyDefaultPrice", () => {
+  it("uses weighted midpoint average across segments", () => {
+    const value = strategyDefaultPrice({
+      market_mode: "bear",
+      price_segments: [
+        { price_low: 100, price_high: 200, weight: 10 },
+        { price_low: 400, price_high: 500, weight: 90 },
+      ],
+      time_segments: [],
+    });
+
+    expect(value).toBeCloseTo(420, 8);
+  });
+
+  it("falls back to bounds midpoint when all weights are zero", () => {
+    const value = strategyDefaultPrice({
+      market_mode: "bull",
+      price_segments: [
+        { price_low: 100, price_high: 200, weight: 0 },
+        { price_low: 400, price_high: 500, weight: 0 },
+      ],
+      time_segments: [],
+    });
+
+    expect(value).toBe(300);
   });
 });

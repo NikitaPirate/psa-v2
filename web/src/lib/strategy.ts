@@ -242,6 +242,39 @@ export const strategyPriceBounds = (
   return { min, max };
 };
 
+export const strategyDefaultPrice = (strategy: CanonicalStrategy): number => {
+  const bounds = strategyPriceBounds(strategy);
+  const fallback = (bounds.min + bounds.max) / 2;
+
+  let weightedMidpointSum = 0;
+  let weightSum = 0;
+
+  strategy.price_segments.forEach((segment) => {
+    if (!Number.isFinite(segment.weight) || segment.weight <= 0) {
+      return;
+    }
+
+    const midpoint = (segment.price_low + segment.price_high) / 2;
+    if (!Number.isFinite(midpoint)) {
+      return;
+    }
+
+    weightedMidpointSum += midpoint * segment.weight;
+    weightSum += segment.weight;
+  });
+
+  if (!(weightSum > 0)) {
+    return fallback;
+  }
+
+  const weightedAverage = weightedMidpointSum / weightSum;
+  if (!Number.isFinite(weightedAverage)) {
+    return fallback;
+  }
+
+  return Math.min(Math.max(weightedAverage, bounds.min), bounds.max);
+};
+
 const pad2 = (value: number): string => String(value).padStart(2, "0");
 
 export const toLocalDateTimeInput = (iso: string): string => {

@@ -1,6 +1,12 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
 import { App } from "./App";
+import {
+  PERSISTED_WEB_STATE_STORAGE_KEY,
+  PERSISTED_WEB_STATE_VERSION,
+  PersistedWebStateV1,
+} from "./lib/persistence";
+import { toLocalDateTimeInput } from "./lib/strategy";
 
 vi.mock("plotly.js-dist-min", () => ({
   default: {
@@ -9,9 +15,40 @@ vi.mock("plotly.js-dist-min", () => ({
   },
 }));
 
+function setPersistedState(value: unknown): void {
+  window.localStorage.setItem(PERSISTED_WEB_STATE_STORAGE_KEY, JSON.stringify(value));
+}
+
+function persistedStateBase(): PersistedWebStateV1 {
+  return {
+    version: PERSISTED_WEB_STATE_VERSION,
+    saved_at: "2026-01-01T00:00:00.000Z",
+    strategy: {
+      market_mode: "bear",
+      price_segments: [{ price_low: 30000, price_high: 40000, weight: 100 }],
+      time_segments: [],
+    },
+    use_draft: {
+      now_price_input: 35500,
+      custom_timestamp_input: "2026-01-10T10:00:00.000Z",
+      custom_price_input: 35200,
+      portfolio_timestamp_input: "2026-01-11T11:30:00.000Z",
+      portfolio_price_input: 34900,
+      portfolio_usd_input: 9999,
+      portfolio_asset_input: 0.7,
+      portfolio_avg_entry_price_input: "31000",
+    },
+    ui: {
+      mode: "use",
+      chart_timestamp: "2026-01-12T09:45:00.000Z",
+    },
+  };
+}
+
 describe("App", () => {
   beforeEach(() => {
     window.history.replaceState({}, "", "/");
+    window.localStorage.clear();
     vi.stubGlobal(
       "fetch",
       vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -251,6 +288,123 @@ describe("App", () => {
 
     await waitFor(() => {
       expect(screen.getByText(/alignment price:\s*\$48,000\.00/i)).toBeInTheDocument();
+    });
+  });
+
+  it("hydrates strategy and use draft from localStorage", () => {
+    const state = persistedStateBase();
+    state.strategy.market_mode = "bull";
+    setPersistedState(state);
+
+    render(<App />);
+
+    expect(screen.getByRole("heading", { name: "Use" })).toBeInTheDocument();
+
+    const nowPriceInput = screen.getAllByLabelText(/^price$/i)[0] as HTMLInputElement;
+    const customTimestampInput = screen.getAllByLabelText(/^timestamp$/i)[0] as HTMLInputElement;
+    const portfolioTimestampInput = screen.getAllByLabelText(/^timestamp$/i)[1] as HTMLInputElement;
+    const chartTimeInput = screen.getByLabelText("Chart time") as HTMLInputElement;
+    const usdInput = screen.getByLabelText("usd_amount") as HTMLInputElement;
+    const avgEntryInput = screen.getByLabelText(
+      "avg_entry_price (optional)",
+    ) as HTMLInputElement;
+
+    expect(nowPriceInput.value).toBe("35500");
+    expect(customTimestampInput.value).toBe(
+      toLocalDateTimeInput(state.use_draft!.custom_timestamp_input),
+    );
+    expect(portfolioTimestampInput.value).toBe(
+      toLocalDateTimeInput(state.use_draft!.portfolio_timestamp_input),
+    );
+    expect(chartTimeInput.value).toBe(toLocalDateTimeInput(state.ui!.chart_timestamp));
+    expect(usdInput.value).toBe("9999");
+    expect(avgEntryInput.value).toBe("31000");
+    expect(screen.queryByText(/share with time modifier:/i)).not.toBeInTheDocument();
+  });
+
+  it("falls back to defaults on corrupted persisted payload", () => {
+    window.localStorage.setItem(PERSISTED_WEB_STATE_STORAGE_KEY, "{");
+
+    render(<App />);
+
+    expect(screen.getByRole("heading", { name: "Create" })).toBeInTheDocument();
+    expect(screen.getByDisplayValue("bear")).toBeInTheDocument();
+  });
+
+  it("ignores persisted payload with invalid strategy", () => {
+    const state = persistedStateBase();
+    state.strategy = {
+      market_mode: "bear",
+      price_segments: [{ price_low: 10, price_high: 20, weight: 0 }],
+      time_segments: [],
+    };
+    setPersistedState(state);
+
+    render(<App />);
+
+    expect(screen.getByRole("heading", { name: "Create" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("tab", { name: "Use" }));
+
+    const nowPriceInput = screen.getAllByLabelText(/^price$/i)[0] as HTMLInputElement;
+    expect(nowPriceInput.value).toBe("35000");
+  });
+
+  it("ignores persisted payload with unsupported version", () => {
+    const state = persistedStateBase() as unknown as { version: number };
+    state.version = 999;
+    setPersistedState(state);
+
+    render(<App />);
+
+    expect(screen.getByRole("heading", { name: "Create" })).toBeInTheDocument();
+  });
+
+  it("uses weighted strategy default price when use draft is absent", () => {
+    const state = persistedStateBase();
+    state.strategy = {
+      market_mode: "bear",
+      price_segments: [
+        { price_low: 100, price_high: 200, weight: 10 },
+        { price_low: 400, price_high: 500, weight: 90 },
+      ],
+      time_segments: [],
+    };
+    delete state.use_draft;
+    setPersistedState(state);
+
+    render(<App />);
+
+    const nowPriceInput = screen.getAllByLabelText(/^price$/i)[0] as HTMLInputElement;
+    expect(nowPriceInput.value).toBe("420");
+  });
+
+  it("persists strategy, use draft and ui mode updates", async () => {
+    render(<App />);
+
+    fireEvent.click(screen.getByRole("tab", { name: "Use" }));
+
+    const nowPriceInput = screen.getAllByLabelText(/^price$/i)[0] as HTMLInputElement;
+    fireEvent.change(nowPriceInput, { target: { value: "36500" } });
+
+    await waitFor(() => {
+      const raw = window.localStorage.getItem(PERSISTED_WEB_STATE_STORAGE_KEY);
+      expect(raw).not.toBeNull();
+
+      const payload = JSON.parse(String(raw)) as PersistedWebStateV1;
+      expect(payload.ui?.mode).toBe("use");
+      expect(payload.use_draft?.now_price_input).toBe(36500);
+    });
+
+    fireEvent.click(screen.getByRole("tab", { name: "Create" }));
+    fireEvent.change(screen.getByLabelText("market_mode"), { target: { value: "bull" } });
+
+    await waitFor(() => {
+      const raw = window.localStorage.getItem(PERSISTED_WEB_STATE_STORAGE_KEY);
+      expect(raw).not.toBeNull();
+
+      const payload = JSON.parse(String(raw)) as PersistedWebStateV1;
+      expect(payload.ui?.mode).toBe("create");
+      expect(payload.strategy.market_mode).toBe("bull");
     });
   });
 });

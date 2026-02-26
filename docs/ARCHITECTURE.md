@@ -34,6 +34,7 @@ Web:
 - `web/src/App.tsx` - `Create / Use` interaction entrypoint.
 - `web/src/main.tsx` - React bootstrap.
 - `web/src/styles.css` - local UI styling.
+- browser `localStorage` keeps web-only draft state (strategy + `Use` inputs + UI mode) for session continuity.
 
 ## Local storage
 
@@ -43,6 +44,8 @@ Per working directory:
 - `.psa/strategies/<strategy_id>/log.ndjson`
 
 Writes are synchronized by `.psa/strategies/<strategy_id>/.lock`.
+
+Web draft persistence in browser storage does not change core/API/CLI contracts and remains local to the current browser profile.
 
 ## Data flow
 
