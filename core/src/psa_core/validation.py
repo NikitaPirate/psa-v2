@@ -109,6 +109,47 @@ def validate_observation(timestamp: str, price: float) -> None:
     _require_positive("price", price)
 
 
+def validate_portfolio_observation(
+    *,
+    timestamp: str,
+    price: float,
+    usd_amount: float,
+    asset_amount: float,
+    avg_entry_price: float | None,
+) -> None:
+    parse_iso8601_utc(timestamp)
+    _require_positive("price", price)
+    _require_finite("usd_amount", usd_amount)
+    _require_finite("asset_amount", asset_amount)
+
+    if float(usd_amount) < 0:
+        raise ValueError("usd_amount must be >= 0")
+    if float(asset_amount) < 0:
+        raise ValueError("asset_amount must be >= 0")
+    if float(usd_amount) == 0 and float(asset_amount) == 0:
+        raise ValueError("usd_amount and asset_amount cannot both be zero")
+
+    if avg_entry_price is not None:
+        _require_positive("avg_entry_price", avg_entry_price)
+
+
+def validate_alignment_search_bounds(
+    *,
+    min_price: float | None,
+    max_price: float | None,
+) -> None:
+    if min_price is None and max_price is None:
+        return
+
+    if min_price is not None:
+        _require_positive("alignment_search_min_price", min_price)
+    if max_price is not None:
+        _require_positive("alignment_search_max_price", max_price)
+
+    if min_price is not None and max_price is not None and float(min_price) >= float(max_price):
+        raise ValueError("alignment_search_min_price must be < alignment_search_max_price")
+
+
 def validate_range_arguments(
     *,
     price_start: float,

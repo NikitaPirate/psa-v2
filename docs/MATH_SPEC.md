@@ -48,3 +48,38 @@ With non-decreasing `k(t)`, both modes become more advanced in target share over
   - bear mode: lower price must not reduce share,
   - bull mode: higher price must not reduce share.
 - For fixed price and non-decreasing `k(t)`: target share must not decrease over time.
+
+## Portfolio evaluation
+
+Let:
+- `U` = USD amount,
+- `Q` = asset amount,
+- `p` = current price,
+- `S_target` = target share from PSA at `(t, p)`.
+
+Derived values:
+- `V = U + Q * p` (portfolio value),
+- `A = Q * p` (asset value),
+- `S_base = A / V` (current share),
+- `D_share = S_base - S_target`.
+
+Target re-alignment:
+- `A_target = S_target * V`,
+- `Q_target = A_target / p`,
+- `Delta_Q = Q_target - Q`,
+- `Delta_U = -Delta_Q * p`.
+
+Average entry PnL (when `avg_entry_price` is provided):
+- `PnL_usd = Q * (p - avg_entry_price)`,
+- `PnL_pct = p / avg_entry_price - 1`.
+
+### Alignment price
+
+Alignment solves:
+- `f(x) = Q*x/(U + Q*x) - S_target(strategy, t, x) = 0`.
+
+Search method:
+- logarithmic grid scan on `[min_price, max_price]` to find sign-change brackets;
+- if multiple brackets exist, choose the bracket with midpoint closest to current `p`;
+- run bisection iterations on the selected bracket;
+- if no bracket is found, `alignment_price = null`.

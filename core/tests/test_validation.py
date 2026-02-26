@@ -2,7 +2,13 @@ from __future__ import annotations
 
 import pytest
 from psa_core.types import PriceSegment, StrategySpec, TimeSegment
-from psa_core.validation import validate_observation, validate_range_arguments, validate_strategy
+from psa_core.validation import (
+    validate_alignment_search_bounds,
+    validate_observation,
+    validate_portfolio_observation,
+    validate_range_arguments,
+    validate_strategy,
+)
 
 
 def test_rejects_overlapping_price_segments() -> None:
@@ -96,3 +102,19 @@ def test_validate_range_arguments_rejects_non_int_or_bool_steps() -> None:
             time_end="2026-04-01T00:00:00Z",
             time_steps=False,  # type: ignore[arg-type]
         )
+
+
+def test_validate_portfolio_observation_rejects_empty_portfolio() -> None:
+    with pytest.raises(ValueError, match="cannot both be zero"):
+        validate_portfolio_observation(
+            timestamp="2026-01-01T00:00:00Z",
+            price=40_000,
+            usd_amount=0,
+            asset_amount=0,
+            avg_entry_price=None,
+        )
+
+
+def test_validate_alignment_search_bounds_rejects_inverted_bounds() -> None:
+    with pytest.raises(ValueError, match="must be <"):
+        validate_alignment_search_bounds(min_price=100, max_price=50)

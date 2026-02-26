@@ -1,5 +1,10 @@
 import { ChangeEvent, useEffect, useMemo, useState } from "react";
-import { evaluatePoint, evaluateRows, evaluateRowsFromRanges } from "./lib/api";
+import {
+  evaluatePoint,
+  evaluatePortfolio,
+  evaluateRows,
+  evaluateRowsFromRanges,
+} from "./lib/api";
 import {
   buildDefaultStrategy,
   cloneStrategy,
@@ -17,6 +22,7 @@ import {
 } from "./lib/charts";
 import {
   CanonicalStrategy,
+  UsePortfolioState,
   UsePointState,
 } from "./lib/types";
 import {
@@ -56,6 +62,11 @@ function sanitizePositivePrice(value: number): number {
   return sanitized > 0 ? sanitized : MIN_OBSERVATION_PRICE;
 }
 
+function sanitizeNonNegativeNumber(value: number, fallback = 0): number {
+  const sanitized = sanitizeNumber(value, fallback);
+  return sanitized >= 0 ? sanitized : 0;
+}
+
 function maxTimeSegmentEnd(strategy: CanonicalStrategy): string | null {
   if (strategy.time_segments.length === 0) {
     return null;
@@ -84,6 +95,19 @@ function initialUsePoint(price: number): UsePointState {
   return {
     timestamp: nowIso(),
     price,
+    result: null,
+    error: "",
+    isLoading: false,
+  };
+}
+
+function initialUsePortfolio(price: number): UsePortfolioState {
+  return {
+    timestamp: nowIso(),
+    price,
+    usd_amount: 10_000,
+    asset_amount: 0.25,
+    avg_entry_price: null,
     result: null,
     error: "",
     isLoading: false,
@@ -125,6 +149,16 @@ export function App() {
     ...initialUsePoint(customPriceInput),
     timestamp: customTimestampInput,
   }));
+  const [portfolioTimestampInput, setPortfolioTimestampInput] = useState<string>(() => nowIso());
+  const [portfolioPriceInput, setPortfolioPriceInput] = useState<number>(() =>
+    Math.round((bounds.min + bounds.max) / 2),
+  );
+  const [portfolioUsdInput, setPortfolioUsdInput] = useState<number>(10_000);
+  const [portfolioAssetInput, setPortfolioAssetInput] = useState<number>(0.25);
+  const [portfolioAvgEntryPriceInput, setPortfolioAvgEntryPriceInput] = useState<string>("");
+  const [portfolioState, setPortfolioState] = useState<UsePortfolioState>(() =>
+    initialUsePortfolio(Math.round((bounds.min + bounds.max) / 2)),
+  );
 
   const validationIssues = useMemo(() => validateCanonicalStrategy(strategy), [strategy]);
   const weightTarget = weightTotalTarget();
@@ -165,6 +199,9 @@ export function App() {
       Math.min(Math.max(current, bounds.min), bounds.max) || nextMid,
     );
     setCustomPriceInput((current) =>
+      Math.min(Math.max(current, bounds.min), bounds.max) || nextMid,
+    );
+    setPortfolioPriceInput((current) =>
       Math.min(Math.max(current, bounds.min), bounds.max) || nextMid,
     );
   }, [bounds.max, bounds.min]);
@@ -390,6 +427,84 @@ export function App() {
       setCustomPoint((current) => ({
         ...current,
         error: error instanceof Error ? error.message : "Point evaluation failed.",
+        isLoading: false,
+      }));
+    }
+  };
+
+  const evaluatePortfolioSnapshot = async () => {
+    if (validationIssues.length > 0) {
+      setPortfolioState((current) => ({
+        ...current,
+        error: validationIssues[0],
+        isLoading: false,
+      }));
+      return;
+    }
+
+    const timestamp = portfolioTimestampInput;
+    const price = sanitizePositivePrice(portfolioPriceInput);
+    const usdAmount = sanitizeNonNegativeNumber(portfolioUsdInput);
+    const assetAmount = sanitizeNonNegativeNumber(portfolioAssetInput);
+    const avgEntryRaw = portfolioAvgEntryPriceInput.trim();
+
+    let avgEntryPrice: number | null = null;
+    if (avgEntryRaw.length > 0) {
+      const parsedAvg = Number(avgEntryRaw);
+      if (!Number.isFinite(parsedAvg) || parsedAvg <= 0) {
+        setPortfolioState((current) => ({
+          ...current,
+          error: "Average entry price must be > 0.",
+          isLoading: false,
+        }));
+        return;
+      }
+      avgEntryPrice = parsedAvg;
+    }
+
+    if (usdAmount === 0 && assetAmount === 0) {
+      setPortfolioState((current) => ({
+        ...current,
+        error: "USD and asset amounts cannot both be zero.",
+        isLoading: false,
+      }));
+      return;
+    }
+
+    setPortfolioState((current) => ({
+      ...current,
+      timestamp,
+      price,
+      usd_amount: usdAmount,
+      asset_amount: assetAmount,
+      avg_entry_price: avgEntryPrice,
+      error: "",
+      isLoading: true,
+    }));
+
+    try {
+      const response = await evaluatePortfolio(strategy, {
+        timestamp,
+        price,
+        usd_amount: usdAmount,
+        asset_amount: assetAmount,
+        avg_entry_price: avgEntryPrice,
+      });
+
+      setPortfolioState({
+        timestamp,
+        price,
+        usd_amount: usdAmount,
+        asset_amount: assetAmount,
+        avg_entry_price: avgEntryPrice,
+        result: response.portfolio,
+        error: "",
+        isLoading: false,
+      });
+    } catch (error) {
+      setPortfolioState((current) => ({
+        ...current,
+        error: error instanceof Error ? error.message : "Portfolio evaluation failed.",
         isLoading: false,
       }));
     }
@@ -649,9 +764,15 @@ export function App() {
           marketMode={strategy.market_mode}
           nowPoint={nowPoint}
           customPoint={customPoint}
+          portfolioState={portfolioState}
           nowPriceInput={nowPriceInput}
           customPriceInput={customPriceInput}
           customTimestampInput={customTimestampInput}
+          portfolioTimestampInput={portfolioTimestampInput}
+          portfolioPriceInput={portfolioPriceInput}
+          portfolioUsdInput={portfolioUsdInput}
+          portfolioAssetInput={portfolioAssetInput}
+          portfolioAvgEntryPriceInput={portfolioAvgEntryPriceInput}
           validationIssues={validationIssues}
           charts={charts}
           chartLoading={chartLoading}
@@ -661,8 +782,16 @@ export function App() {
           onNowPriceChange={(value) => setNowPriceInput(sanitizePositivePrice(value))}
           onCustomPriceChange={(value) => setCustomPriceInput(sanitizePositivePrice(value))}
           onCustomTimestampChange={(value) => setCustomTimestampInput(value)}
+          onPortfolioTimestampChange={setPortfolioTimestampInput}
+          onPortfolioPriceChange={(value) => setPortfolioPriceInput(sanitizePositivePrice(value))}
+          onPortfolioUsdChange={(value) => setPortfolioUsdInput(sanitizeNonNegativeNumber(value))}
+          onPortfolioAssetChange={(value) =>
+            setPortfolioAssetInput(sanitizeNonNegativeNumber(value))
+          }
+          onPortfolioAvgEntryPriceChange={setPortfolioAvgEntryPriceInput}
           onEvaluateNow={() => void evaluateNow()}
           onEvaluateCustom={() => void evaluateCustom()}
+          onEvaluatePortfolio={() => void evaluatePortfolioSnapshot()}
         />
       )}
     </main>

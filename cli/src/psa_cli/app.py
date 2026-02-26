@@ -16,6 +16,7 @@ from psa_cli.schema import validate_request
 
 INPUT_COMMANDS = {
     "evaluate-point",
+    "evaluate-portfolio",
     "evaluate-rows",
     "evaluate-ranges",
     "strategy-upsert",

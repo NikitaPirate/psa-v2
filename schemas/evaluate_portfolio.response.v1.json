@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://psa-v2.dev/schemas/evaluate_portfolio.response.v1.json",
+  "title": "EvaluatePortfolioResponseV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["portfolio"],
+  "properties": {
+    "portfolio": { "$ref": "#/$defs/PortfolioEvaluation" }
+  },
+  "$defs": {
+    "NullablePositiveNumber": {
+      "anyOf": [
+        { "type": "number", "exclusiveMinimum": 0 },
+        { "type": "null" }
+      ]
+    },
+    "NullableNumber": {
+      "anyOf": [
+        { "type": "number" },
+        { "type": "null" }
+      ]
+    },
+    "PortfolioEvaluation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "timestamp",
+        "price",
+        "time_k",
+        "virtual_price",
+        "base_share",
+        "target_share",
+        "share_deviation",
+        "portfolio_value_usd",
+        "asset_value_usd",
+        "usd_value_usd",
+        "target_asset_value_usd",
+        "target_asset_amount",
+        "asset_amount_delta",
+        "usd_delta",
+        "alignment_price",
+        "avg_entry_price",
+        "avg_entry_pnl_usd",
+        "avg_entry_pnl_pct"
+      ],
+      "properties": {
+        "timestamp": { "type": "string", "format": "date-time" },
+        "price": { "type": "number", "exclusiveMinimum": 0 },
+        "time_k": { "type": "number", "exclusiveMinimum": 0 },
+        "virtual_price": { "type": "number", "exclusiveMinimum": 0 },
+        "base_share": { "type": "number", "minimum": 0, "maximum": 1 },
+        "target_share": { "type": "number", "minimum": 0, "maximum": 1 },
+        "share_deviation": { "type": "number" },
+        "portfolio_value_usd": { "type": "number", "exclusiveMinimum": 0 },
+        "asset_value_usd": { "type": "number", "minimum": 0 },
+        "usd_value_usd": { "type": "number", "minimum": 0 },
+        "target_asset_value_usd": { "type": "number", "minimum": 0 },
+        "target_asset_amount": { "type": "number", "minimum": 0 },
+        "asset_amount_delta": { "type": "number" },
+        "usd_delta": { "type": "number" },
+        "alignment_price": { "$ref": "#/$defs/NullablePositiveNumber" },
+        "avg_entry_price": { "$ref": "#/$defs/NullablePositiveNumber" },
+        "avg_entry_pnl_usd": { "$ref": "#/$defs/NullableNumber" },
+        "avg_entry_pnl_pct": { "$ref": "#/$defs/NullableNumber" }
+      }
+    }
+  }
+}

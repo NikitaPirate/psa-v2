@@ -33,6 +33,7 @@ def _add_required_json_flag(parser: argparse.ArgumentParser) -> None:
 def _add_evaluate_commands(subparsers: Any) -> None:
     evaluate_help = {
         "evaluate-point": "Evaluate one observation point",
+        "evaluate-portfolio": "Evaluate current portfolio state at one observation point",
         "evaluate-rows": "Evaluate an array of observation rows",
         "evaluate-ranges": "Build rows from ranges and evaluate them",
     }

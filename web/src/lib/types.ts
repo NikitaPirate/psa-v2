@@ -41,10 +41,46 @@ export type EvaluateRowsResponse = {
   rows: EvaluationRow[];
 };
 
+export type PortfolioEvaluation = {
+  timestamp: string;
+  price: number;
+  time_k: number;
+  virtual_price: number;
+  base_share: number;
+  target_share: number;
+  share_deviation: number;
+  portfolio_value_usd: number;
+  asset_value_usd: number;
+  usd_value_usd: number;
+  target_asset_value_usd: number;
+  target_asset_amount: number;
+  asset_amount_delta: number;
+  usd_delta: number;
+  alignment_price: number | null;
+  avg_entry_price: number | null;
+  avg_entry_pnl_usd: number | null;
+  avg_entry_pnl_pct: number | null;
+};
+
+export type EvaluatePortfolioResponse = {
+  portfolio: PortfolioEvaluation;
+};
+
 export type UsePointState = {
   timestamp: string;
   price: number;
   result: EvaluationRow | null;
+  error: string;
+  isLoading: boolean;
+};
+
+export type UsePortfolioState = {
+  timestamp: string;
+  price: number;
+  usd_amount: number;
+  asset_amount: number;
+  avg_entry_price: number | null;
+  result: PortfolioEvaluation | null;
   error: string;
   isLoading: boolean;
 };

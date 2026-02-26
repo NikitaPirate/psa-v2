@@ -183,6 +183,44 @@ def test_evaluate_point_uses_strategy_id_and_returns_schema_valid_json(tmp_path:
     )
 
 
+def test_evaluate_portfolio_uses_strategy_id_and_returns_schema_valid_json(tmp_path: Path) -> None:
+    created = _run_cli(
+        ["strategy", "upsert", "--strategy-id", "main", "--input", "-", "--json"],
+        cwd=tmp_path,
+        input_text=json.dumps(_strategy_payload()),
+    )
+    assert created.returncode == 0, created.stderr
+
+    request_payload = {
+        "timestamp": "2026-01-01T00:00:00Z",
+        "price": 45_000,
+        "usd_amount": 10_000,
+        "asset_amount": 0.2,
+        "avg_entry_price": 40_000,
+    }
+    completed = _run_cli(
+        [
+            "evaluate-portfolio",
+            "--strategy-id",
+            "main",
+            "--input",
+            "-",
+            "--output",
+            "-",
+            "--json",
+        ],
+        cwd=tmp_path,
+        input_text=json.dumps(request_payload),
+    )
+    assert completed.returncode == 0, completed.stderr
+    response = json.loads(completed.stdout)
+    validate(
+        instance=response,
+        schema=_load_json(SCHEMAS / "evaluate_portfolio.response.v1.json"),
+        format_checker=FORMAT_CHECKER,
+    )
+
+
 def test_cli_error_codes_and_error_json_format(tmp_path: Path) -> None:
     bad_args = _run_cli(["strategy", "list"], cwd=tmp_path)
     assert bad_args.returncode == 2

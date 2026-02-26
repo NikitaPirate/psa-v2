@@ -3,8 +3,21 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from typing import Any
 
-from psa_core.engine import evaluate_point, evaluate_rows, evaluate_rows_from_ranges
-from psa_core.types import EvaluationRow, ObservationRow, PriceSegment, StrategySpec, TimeSegment
+from psa_core.engine import (
+    evaluate_point,
+    evaluate_portfolio,
+    evaluate_rows,
+    evaluate_rows_from_ranges,
+)
+from psa_core.types import (
+    EvaluationRow,
+    ObservationRow,
+    PortfolioEvaluation,
+    PortfolioObservation,
+    PriceSegment,
+    StrategySpec,
+    TimeSegment,
+)
 from psa_core.validation import validate_strategy
 
 
@@ -58,6 +71,17 @@ def _bool_field(mapping: Mapping[str, Any], key: str, default: bool) -> bool:
     if not isinstance(value, bool):
         raise ContractError(f"field '{key}' must be a boolean")
     return value
+
+
+def _optional_float_field(mapping: Mapping[str, Any], key: str) -> float | None:
+    if key not in mapping:
+        return None
+    value = mapping[key]
+    if value is None:
+        return None
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise ContractError(f"field '{key}' must be numeric or null")
+    return float(value)
 
 
 def parse_strategy(payload: Mapping[str, Any]) -> StrategySpec:
@@ -145,6 +169,23 @@ def read_evaluate_rows_ranges_request(
     return strategy, params
 
 
+def read_evaluate_portfolio_request(
+    payload: Mapping[str, Any],
+) -> tuple[StrategySpec, PortfolioObservation]:
+    obj = _ensure_mapping(payload, name="request")
+    strategy = parse_strategy(_ensure_mapping(obj.get("strategy"), name="strategy"))
+    observation = PortfolioObservation(
+        timestamp=_str_field(obj, "timestamp"),
+        price=_float_field(obj, "price"),
+        usd_amount=_float_field(obj, "usd_amount"),
+        asset_amount=_float_field(obj, "asset_amount"),
+        avg_entry_price=_optional_float_field(obj, "avg_entry_price"),
+        alignment_search_min_price=_optional_float_field(obj, "alignment_search_min_price"),
+        alignment_search_max_price=_optional_float_field(obj, "alignment_search_max_price"),
+    )
+    return strategy, observation
+
+
 def row_to_dict(row: EvaluationRow) -> dict[str, Any]:
     return {
         "timestamp": row.timestamp,
@@ -153,6 +194,29 @@ def row_to_dict(row: EvaluationRow) -> dict[str, Any]:
         "virtual_price": row.virtual_price,
         "base_share": row.base_share,
         "target_share": row.target_share,
+    }
+
+
+def portfolio_to_dict(portfolio: PortfolioEvaluation) -> dict[str, Any]:
+    return {
+        "timestamp": portfolio.timestamp,
+        "price": portfolio.price,
+        "time_k": portfolio.time_k,
+        "virtual_price": portfolio.virtual_price,
+        "base_share": portfolio.base_share,
+        "target_share": portfolio.target_share,
+        "share_deviation": portfolio.share_deviation,
+        "portfolio_value_usd": portfolio.portfolio_value_usd,
+        "asset_value_usd": portfolio.asset_value_usd,
+        "usd_value_usd": portfolio.usd_value_usd,
+        "target_asset_value_usd": portfolio.target_asset_value_usd,
+        "target_asset_amount": portfolio.target_asset_amount,
+        "asset_amount_delta": portfolio.asset_amount_delta,
+        "usd_delta": portfolio.usd_delta,
+        "alignment_price": portfolio.alignment_price,
+        "avg_entry_price": portfolio.avg_entry_price,
+        "avg_entry_pnl_usd": portfolio.avg_entry_pnl_usd,
+        "avg_entry_pnl_pct": portfolio.avg_entry_pnl_pct,
     }
 
 
@@ -172,3 +236,9 @@ def evaluate_rows_from_ranges_payload(payload: Mapping[str, Any]) -> dict[str, A
     strategy, params = read_evaluate_rows_ranges_request(payload)
     evaluated = evaluate_rows_from_ranges(strategy=strategy, **params)
     return {"rows": [row_to_dict(row) for row in evaluated]}
+
+
+def evaluate_portfolio_payload(payload: Mapping[str, Any]) -> dict[str, Any]:
+    strategy, observation = read_evaluate_portfolio_request(payload)
+    portfolio = evaluate_portfolio(strategy=strategy, observation=observation)
+    return {"portfolio": portfolio_to_dict(portfolio)}

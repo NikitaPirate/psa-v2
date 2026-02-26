@@ -66,6 +66,38 @@ describe("App", () => {
           };
         }
 
+        if (url.endsWith("/v1/evaluate/portfolio")) {
+          const price = Number(payload.price ?? 50000);
+          const timestamp = String(payload.timestamp ?? "2026-01-01T00:00:00Z");
+
+          return {
+            ok: true,
+            status: 200,
+            json: async () => ({
+              portfolio: {
+                timestamp,
+                price,
+                time_k: 1,
+                virtual_price: price,
+                base_share: 0.35,
+                target_share: 0.5,
+                share_deviation: -0.15,
+                portfolio_value_usd: 20000,
+                asset_value_usd: 7000,
+                usd_value_usd: 13000,
+                target_asset_value_usd: 10000,
+                target_asset_amount: 0.2,
+                asset_amount_delta: -0.05,
+                usd_delta: 2500,
+                alignment_price: 48000,
+                avg_entry_price: 42000,
+                avg_entry_pnl_usd: 500,
+                avg_entry_pnl_pct: 0.1,
+              },
+            }),
+          };
+        }
+
         return {
           ok: false,
           status: 404,
@@ -208,6 +240,17 @@ describe("App", () => {
 
     await waitFor(() => {
       expect(screen.getByText(/price:\s*\$0\.01/i)).toBeInTheDocument();
+    });
+  });
+
+  it("evaluates portfolio snapshot in Use mode", async () => {
+    render(<App />);
+
+    fireEvent.click(screen.getByRole("tab", { name: "Use" }));
+    fireEvent.click(screen.getByRole("button", { name: "Evaluate portfolio" }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/alignment price:\s*\$48,000\.00/i)).toBeInTheDocument();
     });
   });
 });

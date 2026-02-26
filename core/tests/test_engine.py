@@ -3,11 +3,13 @@ from __future__ import annotations
 import pytest
 from psa_core import (
     ObservationRow,
+    PortfolioObservation,
     PriceSegment,
     StrategySpec,
     TimeSegment,
     build_rows_from_ranges,
     evaluate_point,
+    evaluate_portfolio,
     evaluate_rows,
     evaluate_rows_from_ranges,
 )
@@ -50,6 +52,14 @@ def _bull_strategy() -> StrategySpec:
                 k_end=1.4,
             ),
         ),
+    )
+
+
+def _portfolio_strategy() -> StrategySpec:
+    return StrategySpec(
+        market_mode="bear",
+        price_segments=(PriceSegment(price_low=20_000, price_high=80_000, weight=100),),
+        time_segments=(),
     )
 
 
@@ -198,3 +208,91 @@ def test_build_rows_from_ranges_rejects_bool_steps() -> None:
             time_end="2026-04-01T00:00:00Z",
             time_steps=False,  # type: ignore[arg-type]
         )
+
+
+def test_evaluate_portfolio_computes_core_fields() -> None:
+    strategy = _bear_strategy()
+    observation = PortfolioObservation(
+        timestamp="2026-03-01T00:00:00Z",
+        price=42_000,
+        usd_amount=15_000,
+        asset_amount=0.5,
+        avg_entry_price=38_000,
+    )
+
+    evaluated = evaluate_portfolio(strategy, observation)
+    expected_portfolio_value = observation.usd_amount + observation.asset_amount * observation.price
+    expected_asset_value = observation.asset_amount * observation.price
+    expected_base_share = expected_asset_value / expected_portfolio_value
+    expected_target_asset_amount = (
+        evaluated.target_share * expected_portfolio_value
+    ) / observation.price
+
+    assert evaluated.portfolio_value_usd == pytest.approx(expected_portfolio_value)
+    assert evaluated.asset_value_usd == pytest.approx(expected_asset_value)
+    assert evaluated.usd_value_usd == pytest.approx(observation.usd_amount)
+    assert evaluated.base_share == pytest.approx(expected_base_share)
+    assert evaluated.share_deviation == pytest.approx(evaluated.base_share - evaluated.target_share)
+    assert evaluated.target_asset_amount == pytest.approx(expected_target_asset_amount)
+    assert evaluated.usd_delta == pytest.approx(-evaluated.asset_amount_delta * observation.price)
+    assert evaluated.avg_entry_pnl_usd == pytest.approx(observation.asset_amount * 4_000)
+    assert evaluated.avg_entry_pnl_pct == pytest.approx((42_000 / 38_000) - 1.0)
+
+
+def test_evaluate_portfolio_avg_entry_fields_are_null_when_not_provided() -> None:
+    strategy = _bear_strategy()
+    observation = PortfolioObservation(
+        timestamp="2026-03-01T00:00:00Z",
+        price=42_000,
+        usd_amount=15_000,
+        asset_amount=0.5,
+    )
+
+    evaluated = evaluate_portfolio(strategy, observation)
+    assert evaluated.avg_entry_price is None
+    assert evaluated.avg_entry_pnl_usd is None
+    assert evaluated.avg_entry_pnl_pct is None
+
+
+def test_evaluate_portfolio_returns_alignment_price_when_root_exists() -> None:
+    strategy = _portfolio_strategy()
+    observation = PortfolioObservation(
+        timestamp="2026-03-01T00:00:00Z",
+        price=40_000,
+        usd_amount=40_000,
+        asset_amount=1.0,
+    )
+
+    evaluated = evaluate_portfolio(strategy, observation)
+    assert evaluated.alignment_price is not None
+    assert evaluated.alignment_price > 0
+
+
+def test_evaluate_portfolio_returns_null_alignment_when_no_root_in_search_range() -> None:
+    strategy = _portfolio_strategy()
+    observation = PortfolioObservation(
+        timestamp="2026-03-01T00:00:00Z",
+        price=40_000,
+        usd_amount=500_000,
+        asset_amount=0.2,
+        alignment_search_min_price=2_000,
+        alignment_search_max_price=8_000,
+    )
+
+    evaluated = evaluate_portfolio(strategy, observation)
+    assert evaluated.alignment_price is None
+
+
+def test_evaluate_portfolio_is_deterministic() -> None:
+    strategy = _portfolio_strategy()
+    observation = PortfolioObservation(
+        timestamp="2026-03-01T00:00:00Z",
+        price=40_000,
+        usd_amount=12_000,
+        asset_amount=0.3,
+        avg_entry_price=35_000,
+    )
+
+    first = evaluate_portfolio(strategy, observation)
+    second = evaluate_portfolio(strategy, observation)
+    assert first == second

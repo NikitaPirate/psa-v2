@@ -60,6 +60,15 @@ def test_evaluate_rows_success_matches_response_schema(client: TestClient) -> No
     validate(response.json(), schema, format_checker=FORMAT_CHECKER)
 
 
+def test_evaluate_portfolio_success_matches_response_schema(client: TestClient) -> None:
+    payload = _load_json(EXAMPLES / "evaluate_portfolio.json")
+    response = client.post("/v1/evaluate/portfolio", json=payload)
+    assert response.status_code == 200
+
+    schema = _load_json(SCHEMAS / "evaluate_portfolio.response.v1.json")
+    validate(response.json(), schema, format_checker=FORMAT_CHECKER)
+
+
 def test_evaluate_rows_from_ranges_success_matches_response_schema(client: TestClient) -> None:
     payload = _load_json(EXAMPLES / "range_timeseries_rows.json")
     response = client.post("/v1/evaluate/rows-from-ranges", json=payload)
@@ -93,6 +102,19 @@ def test_runtime_semantic_error_returns_unified_422(client: TestClient) -> None:
     _assert_error_shape(body)
     assert body["error"]["code"] == "validation_error"
     assert "overlap" in body["error"]["message"]
+
+
+def test_portfolio_runtime_semantic_error_returns_unified_422(client: TestClient) -> None:
+    payload = _load_json(EXAMPLES / "evaluate_portfolio.json")
+    payload["usd_amount"] = 0
+    payload["asset_amount"] = 0
+
+    response = client.post("/v1/evaluate/portfolio", json=payload)
+    assert response.status_code == 422
+    body = response.json()
+    _assert_error_shape(body)
+    assert body["error"]["code"] == "validation_error"
+    assert "cannot both be zero" in body["error"]["message"]
 
 
 def test_rows_limit_returns_422_with_cli_hint(client: TestClient) -> None:
@@ -143,5 +165,6 @@ def test_openapi_contains_v1_evaluate_paths(client: TestClient) -> None:
     assert response.status_code == 200
     paths = response.json()["paths"]
     assert "/v1/evaluate/point" in paths
+    assert "/v1/evaluate/portfolio" in paths
     assert "/v1/evaluate/rows" in paths
     assert "/v1/evaluate/rows-from-ranges" in paths
