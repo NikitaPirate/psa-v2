@@ -63,7 +63,7 @@ def _portfolio_strategy() -> StrategySpec:
     )
 
 
-def test_piecewise_share_is_directional_by_market_mode() -> None:
+def test_piecewise_share_is_monotonic_by_price_for_both_modes() -> None:
     bear = _bear_strategy()
     bull = _bull_strategy()
 
