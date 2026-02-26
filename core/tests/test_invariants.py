@@ -57,7 +57,7 @@ def test_monotonicity_by_favorable_price_direction(p_a: float, p_b: float) -> No
 
     bull_low = evaluate_point(bull, ts, low)
     bull_high = evaluate_point(bull, ts, high)
-    assert bull_high.base_share >= bull_low.base_share
+    assert bull_low.base_share >= bull_high.base_share
 
 
 @settings(max_examples=120)
@@ -66,7 +66,7 @@ def test_monotonicity_by_favorable_price_direction(p_a: float, p_b: float) -> No
     day_b=st.integers(min_value=0, max_value=180),
     mode=st.sampled_from(["bear", "bull"]),
 )
-def test_target_share_non_decreasing_over_time_with_non_decreasing_k(
+def test_target_share_time_monotonicity_by_market_mode_with_non_decreasing_k(
     day_a: int,
     day_b: int,
     mode: str,
@@ -78,4 +78,7 @@ def test_target_share_non_decreasing_over_time_with_non_decreasing_k(
     first = evaluate_point(strategy, _iso(left), price)
     second = evaluate_point(strategy, _iso(right), price)
 
-    assert second.target_share >= first.target_share
+    if mode == "bear":
+        assert second.target_share >= first.target_share
+    else:
+        assert second.target_share <= first.target_share

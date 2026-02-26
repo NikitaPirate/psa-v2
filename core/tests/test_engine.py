@@ -73,7 +73,7 @@ def test_piecewise_share_is_directional_by_market_mode() -> None:
 
     bull_low = evaluate_point(bull, "2026-09-01T00:00:00Z", 32_000)
     bull_high = evaluate_point(bull, "2026-09-01T00:00:00Z", 65_000)
-    assert bull_high.base_share > bull_low.base_share
+    assert bull_low.base_share > bull_high.base_share
 
 
 def test_time_coefficient_boundaries_and_midpoint() -> None:
@@ -101,7 +101,7 @@ def test_market_mode_changes_virtual_price_direction() -> None:
     assert bear_row.virtual_price < bear_row.price
     assert bull_row.virtual_price > bull_row.price
     assert bear_row.target_share >= bear_row.base_share
-    assert bull_row.target_share >= bull_row.base_share
+    assert bull_row.target_share <= bull_row.base_share
 
 
 def test_evaluate_rows_is_deterministic_and_preserves_order() -> None:

@@ -7,8 +7,9 @@ Current implemented modules: deterministic computation core plus AI-first statef
 
 - Monorepo foundation with implemented core, API, CLI, and local web client.
 - Single mode axis: `market_mode`.
-  - `bear` means accumulation behavior.
-  - `bull` means distribution behavior.
+  - for both modes, share rises as price moves lower;
+  - `bear` means accumulation via time (`p_virtual = p / k`);
+  - `bull` means distribution via time (`p_virtual = p * k`).
 - Strict input/output contracts via versioned JSON Schema.
 - Share outputs are normalized to `[0, 1]`.
 
