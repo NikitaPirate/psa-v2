@@ -6,7 +6,9 @@ services:
     container_name: psa-v2-api
     restart: unless-stopped
     networks:
-      - internal
+      internal:
+        aliases:
+          - psa-v2-api-int
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=2)"]
       interval: 15s
