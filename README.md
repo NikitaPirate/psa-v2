@@ -140,7 +140,7 @@ npm run dev
 
 ## Docker Deploy (API + Web)
 
-Base `docker-compose.yml` does not publish ports and is intended for reverse-proxy access through external Docker network `docker_network`.
+Base `docker-compose.yml` does not publish ports and is intended for reverse-proxy access through external Docker network `${PROXY_DOCKER_NETWORK}`.
 
 Run stack:
 

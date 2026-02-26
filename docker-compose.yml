@@ -25,7 +25,7 @@ services:
         condition: service_healthy
     networks:
       - internal
-      - docker_network
+      - proxy
     healthcheck:
       test: ["CMD", "wget", "-q", "-O", "-", "http://127.0.0.1/"]
       interval: 15s
@@ -37,6 +37,6 @@ networks:
   internal:
     name: psa-v2-internal
     driver: bridge
-  docker_network:
-    name: docker_network
+  proxy:
+    name: ${PROXY_DOCKER_NETWORK}
     external: true
