@@ -15,6 +15,7 @@ from psa_cli.errors import CliValidationError
 
 REQUEST_SCHEMAS: dict[str, str] = {
     "evaluate-point": "evaluate_point.request.v1.json",
+    "evaluate-portfolio": "evaluate_portfolio.request.v1.json",
     "evaluate-rows": "evaluate_rows.request.v1.json",
     "evaluate-ranges": "evaluate_rows_from_ranges.request.v1.json",
     "strategy-upsert": "strategy_upsert.request.v1.json",

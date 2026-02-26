@@ -8,6 +8,7 @@ from typing import Any
 from jsonschema import Draft202012Validator, FormatChecker
 
 EVALUATE_POINT_REQUEST_SCHEMA = "evaluate_point.request.v1.json"
+EVALUATE_PORTFOLIO_REQUEST_SCHEMA = "evaluate_portfolio.request.v1.json"
 EVALUATE_ROWS_REQUEST_SCHEMA = "evaluate_rows.request.v1.json"
 EVALUATE_ROWS_FROM_RANGES_REQUEST_SCHEMA = "evaluate_rows_from_ranges.request.v1.json"
 STRATEGY_UPSERT_REQUEST_SCHEMA = "strategy_upsert.request.v1.json"
@@ -16,6 +17,7 @@ _REPO_ROOT = Path(__file__).resolve().parents[3]
 _SCHEMAS_DIR = _REPO_ROOT / "schemas"
 _REQUEST_SCHEMA_FILES = (
     EVALUATE_POINT_REQUEST_SCHEMA,
+    EVALUATE_PORTFOLIO_REQUEST_SCHEMA,
     EVALUATE_ROWS_REQUEST_SCHEMA,
     EVALUATE_ROWS_FROM_RANGES_REQUEST_SCHEMA,
     STRATEGY_UPSERT_REQUEST_SCHEMA,
@@ -85,6 +87,29 @@ def validate_rows_envelope(payload: dict[str, Any]) -> None:
     validate_request_payload(
         {"rows": payload.get("rows")},
         schema_name=EVALUATE_ROWS_REQUEST_SCHEMA,
+    )
+
+
+def validate_portfolio_envelope(payload: dict[str, Any]) -> None:
+    validate_request_payload(
+        payload.get("strategy", {}),
+        schema_name=STRATEGY_UPSERT_REQUEST_SCHEMA,
+    )
+    portfolio_request = {
+        key: payload[key]
+        for key in ("timestamp", "price", "usd_amount", "asset_amount")
+        if key in payload
+    }
+    for optional_key in (
+        "avg_entry_price",
+        "alignment_search_min_price",
+        "alignment_search_max_price",
+    ):
+        if optional_key in payload:
+            portfolio_request[optional_key] = payload[optional_key]
+    validate_request_payload(
+        portfolio_request,
+        schema_name=EVALUATE_PORTFOLIO_REQUEST_SCHEMA,
     )
 
 

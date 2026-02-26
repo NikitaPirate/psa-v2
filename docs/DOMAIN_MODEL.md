@@ -38,9 +38,39 @@ Weight rules:
 
 Both share fields are normalized to `[0, 1]`.
 
+### `PortfolioObservation`
+- `timestamp: str`
+- `price: float`
+- `usd_amount: float`
+- `asset_amount: float`
+- `avg_entry_price: float | null` (optional)
+- `alignment_search_min_price: float | null` (optional)
+- `alignment_search_max_price: float | null` (optional)
+
+### `PortfolioEvaluation`
+- `timestamp: str`
+- `price: float`
+- `time_k: float`
+- `virtual_price: float`
+- `base_share: float`
+- `target_share: float`
+- `share_deviation: float`
+- `portfolio_value_usd: float`
+- `asset_value_usd: float`
+- `usd_value_usd: float`
+- `target_asset_value_usd: float`
+- `target_asset_amount: float`
+- `asset_amount_delta: float`
+- `usd_delta: float`
+- `alignment_price: float | null`
+- `avg_entry_price: float | null`
+- `avg_entry_pnl_usd: float | null`
+- `avg_entry_pnl_pct: float | null`
+
 ## Public API
 
 - `evaluate_point(strategy, timestamp, price) -> EvaluationRow`
+- `evaluate_portfolio(strategy, observation) -> PortfolioEvaluation`
 - `evaluate_rows(strategy, rows) -> list[EvaluationRow]`
 - `build_rows_from_ranges(...) -> list[ObservationRow]`
 - `evaluate_rows_from_ranges(...) -> list[EvaluationRow]`

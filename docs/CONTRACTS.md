@@ -6,6 +6,7 @@ Machine-facing payload contracts are versioned JSON Schema files under `schemas/
 
 Evaluate payloads (strategy supplied by CLI `--strategy-id`):
 - `schemas/evaluate_point.request.v1.json`
+- `schemas/evaluate_portfolio.request.v1.json`
 - `schemas/evaluate_rows.request.v1.json`
 - `schemas/evaluate_rows_from_ranges.request.v1.json`
 
@@ -20,6 +21,7 @@ Portable strategy payload:
 
 Evaluation responses:
 - `schemas/evaluate_point.response.v1.json`
+- `schemas/evaluate_portfolio.response.v1.json`
 - `schemas/evaluate_rows.response.v1.json`
 
 Strategy/log responses are CLI-defined JSON payloads validated by integration tests.
@@ -27,6 +29,7 @@ Strategy/log responses are CLI-defined JSON payloads validated by integration te
 ## CLI contract notes
 
 - All operational commands require `--json`.
+- Portfolio evaluation command is `evaluate-portfolio` and uses the same input/output flags as other evaluate commands.
 - Success payload is JSON.
 - Error payload format is:
   - `error.code`
@@ -67,3 +70,7 @@ Strategy/log responses are CLI-defined JSON payloads validated by integration te
 - request parsing,
 - runtime validation delegation,
 - JSON-ready response building.
+
+## API contract notes
+
+- `POST /v1/evaluate/portfolio` accepts strategy in request payload (same envelope style as other API evaluate endpoints).

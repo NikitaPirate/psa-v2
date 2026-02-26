@@ -123,3 +123,23 @@ def test_validate_request_rejects_evaluate_point_with_inline_strategy() -> None:
         assert "request does not match schema" in str(exc)
     else:
         raise AssertionError("expected schema validation failure")
+
+
+def test_validate_request_rejects_evaluate_portfolio_with_inline_strategy() -> None:
+    schema_module.load_schema.cache_clear()
+    payload = {
+        "strategy": {
+            "market_mode": "bear",
+            "price_segments": [{"price_low": 1.0, "price_high": 2.0, "weight": 100.0}],
+        },
+        "timestamp": "2026-01-01T00:00:00Z",
+        "price": 1.0,
+        "usd_amount": 1.0,
+        "asset_amount": 1.0,
+    }
+    try:
+        schema_module.validate_request("evaluate-portfolio", payload)
+    except Exception as exc:
+        assert "request does not match schema" in str(exc)
+    else:
+        raise AssertionError("expected schema validation failure")

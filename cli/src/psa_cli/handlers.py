@@ -5,6 +5,7 @@ from typing import Any
 
 from psa_core.contracts import (
     evaluate_point_payload,
+    evaluate_portfolio_payload,
     evaluate_rows_from_ranges_payload,
     evaluate_rows_payload,
 )
@@ -48,9 +49,17 @@ def _evaluate_ranges_with_saved_strategy(strategy_id: str, payload: Any) -> dict
     return evaluate_rows_from_ranges_payload(request)
 
 
+def _evaluate_portfolio_with_saved_strategy(strategy_id: str, payload: Any) -> dict[str, Any]:
+    request = dict(_ensure_mapping(payload, name="request"))
+    request["strategy"] = dict(load_strategy_payload(strategy_id))
+    return evaluate_portfolio_payload(request)
+
+
 def execute_command(command: str, payload: Any, *, args: Any) -> dict[str, Any]:
     if command == "evaluate-point":
         return _evaluate_point_with_saved_strategy(args.strategy_id, payload)
+    if command == "evaluate-portfolio":
+        return _evaluate_portfolio_with_saved_strategy(args.strategy_id, payload)
     if command == "evaluate-rows":
         return _evaluate_rows_with_saved_strategy(args.strategy_id, payload)
     if command == "evaluate-ranges":

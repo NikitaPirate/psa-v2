@@ -45,6 +45,25 @@ def test_parser_parses_evaluate_point_with_strategy_id() -> None:
     assert args.pretty is True
 
 
+def test_parser_parses_evaluate_portfolio_with_strategy_id() -> None:
+    parser = build_parser()
+    args = parser.parse_args(
+        [
+            "evaluate-portfolio",
+            "--strategy-id",
+            "main",
+            "--input",
+            "request.json",
+            "--output",
+            "-",
+            "--json",
+        ]
+    )
+    assert args.command_key == "evaluate-portfolio"
+    assert args.strategy_id == "main"
+    assert args.json_output is True
+
+
 def test_parser_requires_json_flag() -> None:
     parser = build_parser()
     with pytest.raises(CliArgumentError):

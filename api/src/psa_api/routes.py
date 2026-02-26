@@ -5,6 +5,7 @@ from typing import Any
 from fastapi import APIRouter
 from psa_core.contracts import (
     evaluate_point_payload,
+    evaluate_portfolio_payload,
     evaluate_rows_from_ranges_payload,
     evaluate_rows_payload,
 )
@@ -12,6 +13,7 @@ from psa_core.contracts import (
 from psa_api.errors import ApiLimitError
 from psa_api.schema_validation import (
     validate_point_envelope,
+    validate_portfolio_envelope,
     validate_ranges_envelope,
     validate_rows_envelope,
 )
@@ -26,6 +28,12 @@ CLI_HINT = "For larger batch jobs, use the CLI workflow."
 async def evaluate_point_endpoint(payload: dict[str, Any]) -> dict[str, Any]:
     validate_point_envelope(payload)
     return evaluate_point_payload(payload)
+
+
+@router.post("/evaluate/portfolio")
+async def evaluate_portfolio_endpoint(payload: dict[str, Any]) -> dict[str, Any]:
+    validate_portfolio_envelope(payload)
+    return evaluate_portfolio_payload(payload)
 
 
 @router.post("/evaluate/rows")

@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://psa-v2.dev/schemas/evaluate_portfolio.request.v1.json",
+  "title": "EvaluatePortfolioRequestV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["timestamp", "price", "usd_amount", "asset_amount"],
+  "properties": {
+    "timestamp": { "type": "string", "format": "date-time" },
+    "price": { "type": "number", "exclusiveMinimum": 0 },
+    "usd_amount": { "type": "number", "minimum": 0 },
+    "asset_amount": { "type": "number", "minimum": 0 },
+    "avg_entry_price": {
+      "anyOf": [
+        { "type": "number", "exclusiveMinimum": 0 },
+        { "type": "null" }
+      ]
+    },
+    "alignment_search_min_price": { "type": "number", "exclusiveMinimum": 0 },
+    "alignment_search_max_price": { "type": "number", "exclusiveMinimum": 0 }
+  }
+}

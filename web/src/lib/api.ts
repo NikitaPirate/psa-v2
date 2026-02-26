@@ -1,6 +1,7 @@
 import {
   ApiErrorEnvelope,
   CanonicalStrategy,
+  EvaluatePortfolioResponse,
   EvaluatePointResponse,
   EvaluateRowsResponse,
   ObservationRow,
@@ -16,6 +17,16 @@ type EvaluateRowsFromRangesRequest = {
   time_end: string;
   time_steps: number;
   include_price_breakpoints: boolean;
+};
+
+type EvaluatePortfolioRequest = {
+  timestamp: string;
+  price: number;
+  usd_amount: number;
+  asset_amount: number;
+  avg_entry_price?: number | null;
+  alignment_search_min_price?: number;
+  alignment_search_max_price?: number;
 };
 
 const getApiError = (body: unknown, status: number): string => {
@@ -88,6 +99,21 @@ export async function evaluateRowsFromRanges(
 ): Promise<EvaluateRowsResponse> {
   return postJson<EvaluateRowsResponse>(
     "/evaluate/rows-from-ranges",
+    {
+      strategy,
+      ...request,
+    },
+    signal,
+  );
+}
+
+export async function evaluatePortfolio(
+  strategy: CanonicalStrategy,
+  request: EvaluatePortfolioRequest,
+  signal?: AbortSignal,
+): Promise<EvaluatePortfolioResponse> {
+  return postJson<EvaluatePortfolioResponse>(
+    "/evaluate/portfolio",
     {
       strategy,
       ...request,

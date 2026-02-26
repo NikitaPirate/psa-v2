@@ -8,6 +8,7 @@ from jsonschema import Draft202012Validator, FormatChecker, ValidationError, val
 from psa_core.contracts import (
     ContractError,
     evaluate_point_payload,
+    evaluate_portfolio_payload,
     evaluate_rows_from_ranges_payload,
     evaluate_rows_payload,
 )
@@ -75,6 +76,25 @@ def test_examples_match_request_schemas_and_produce_valid_responses() -> None:
     validate(ranges_request, ranges_request_schema, format_checker=FORMAT_CHECKER)
     ranges_response = evaluate_rows_from_ranges_payload(ranges_full_request)
     validate(ranges_response, rows_response_schema, format_checker=FORMAT_CHECKER)
+
+    portfolio_full_request = _load_json(EXAMPLES / "evaluate_portfolio.json")
+    portfolio_request_schema = _load_json(SCHEMAS / "evaluate_portfolio.request.v1.json")
+    portfolio_response_schema = _load_json(SCHEMAS / "evaluate_portfolio.response.v1.json")
+    validate(
+        portfolio_full_request["strategy"],
+        strategy_request_schema,
+        format_checker=FORMAT_CHECKER,
+    )
+    portfolio_request = {
+        "timestamp": portfolio_full_request["timestamp"],
+        "price": portfolio_full_request["price"],
+        "usd_amount": portfolio_full_request["usd_amount"],
+        "asset_amount": portfolio_full_request["asset_amount"],
+        "avg_entry_price": portfolio_full_request["avg_entry_price"],
+    }
+    validate(portfolio_request, portfolio_request_schema, format_checker=FORMAT_CHECKER)
+    portfolio_response = evaluate_portfolio_payload(portfolio_full_request)
+    validate(portfolio_response, portfolio_response_schema, format_checker=FORMAT_CHECKER)
 
 
 def test_schema_rejects_invalid_market_mode() -> None:
@@ -150,3 +170,11 @@ def test_ranges_payload_rejects_bool_steps_in_contract_adapter() -> None:
 
     with pytest.raises(ContractError, match="price_steps"):
         evaluate_rows_from_ranges_payload(payload)
+
+
+def test_portfolio_payload_rejects_non_numeric_avg_entry_price() -> None:
+    payload = _load_json(EXAMPLES / "evaluate_portfolio.json")
+    payload["avg_entry_price"] = "oops"
+
+    with pytest.raises(ContractError, match="avg_entry_price"):
+        evaluate_portfolio_payload(payload)
